@@ -2,9 +2,9 @@
 Terraform CLI integration module
 """
 
+import asyncio
 import json
 import re
-import subprocess
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -52,14 +52,14 @@ class TerraformCLI:
         self.working_dir = Path(working_dir)
         self._version_cache: Optional[str] = None
     
-    def _run_command(
-        self, 
-        command: List[str], 
+    async def _run_command(
+        self,
+        command: List[str],
         capture_output: bool = True,
         timeout: int = 300,
         input_text: Optional[str] = None
     ) -> TerraformResult:
-        """Run a Terraform command"""
+        """Run a Terraform command asynchronously"""
         import time
         start_time = time.time()
         
@@ -68,31 +68,39 @@ class TerraformCLI:
         try:
             logger.debug(f"Running command: {' '.join(full_command)} in {self.working_dir}")
             
+            # Create subprocess
+            process = await asyncio.create_subprocess_exec(
+                *full_command,
+                cwd=self.working_dir,
+                stdout=asyncio.subprocess.PIPE if capture_output else None,
+                stderr=asyncio.subprocess.PIPE if capture_output else None,
+                stdin=asyncio.subprocess.PIPE if input_text else None
+            )
+            
+            # Handle input if provided
             if input_text:
-                result = subprocess.run(
-                    full_command,
-                    cwd=self.working_dir,
-                    capture_output=capture_output,
-                    text=True,
-                    timeout=timeout,
-                    input=input_text
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(input=input_text.encode()),
+                    timeout=timeout
                 )
             else:
-                result = subprocess.run(
-                    full_command,
-                    cwd=self.working_dir,
-                    capture_output=capture_output,
-                    text=True,
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(),
                     timeout=timeout
                 )
             
+            # Decode outputs
+            stdout_str = stdout.decode() if stdout else ""
+            stderr_str = stderr.decode() if stderr else ""
+            
+            return_code = await process.wait()
             duration = time.time() - start_time
             
             terraform_result = TerraformResult(
-                success=result.returncode == 0,
-                return_code=result.returncode,
-                stdout=result.stdout,
-                stderr=result.stderr,
+                success=return_code == 0,
+                return_code=return_code,
+                stdout=stdout_str,
+                stderr=stderr_str,
                 command=' '.join(full_command),
                 duration=duration
             )
@@ -100,14 +108,19 @@ class TerraformCLI:
             if terraform_result.success:
                 logger.debug(f"Command completed successfully in {duration:.2f}s")
             else:
-                logger.warning(f"Command failed with return code {result.returncode}")
-                if result.stderr:
-                    logger.warning(f"Error: {result.stderr}")
+                logger.warning(f"Command failed with return code {return_code}")
+                if stderr_str:
+                    logger.warning(f"Error: {stderr_str}")
             
             return terraform_result
             
-        except subprocess.TimeoutExpired:
+        except asyncio.TimeoutError:
             logger.error(f"Command timed out after {timeout} seconds")
+            process.terminate()
+            try:
+                await process.wait()
+            except:
+                process.kill()
             return TerraformResult(
                 success=False,
                 return_code=-1,
@@ -127,10 +140,10 @@ class TerraformCLI:
                 duration=0
             )
     
-    def get_version(self) -> Optional[str]:
+    async def get_version(self) -> Optional[str]:
         """Get Terraform version"""
         if self._version_cache is None:
-            result = self._run_command(["version"])
+            result = await self._run_command(["version"])
             if result.success:
                 # Extract version from output
                 match = re.search(r'Terraform v(\d+\.\d+\.\d+)', result.stdout)
@@ -147,20 +160,20 @@ class TerraformCLI:
         terraform_dir = self.working_dir / ".terraform"
         return terraform_dir.exists()
     
-    def init(self, upgrade: bool = False) -> TerraformResult:
+    async def init(self, upgrade: bool = False) -> TerraformResult:
         """Initialize Terraform"""
         command = ["init"]
         if upgrade:
             command.append("-upgrade")
         
-        return self._run_command(command)
+        return await self._run_command(command)
     
-    def validate(self) -> TerraformResult:
+    async def validate(self) -> TerraformResult:
         """Validate Terraform configuration"""
-        return self._run_command(["validate"])
+        return await self._run_command(["validate"])
     
-    def plan(
-        self, 
+    async def plan(
+        self,
         out: Optional[str] = None,
         var_file: Optional[str] = None,
         var: Optional[Dict[str, Any]] = None,
@@ -186,9 +199,9 @@ class TerraformCLI:
         if destroy:
             command.append("-destroy")
         
-        return self._run_command(command)
+        return await self._run_command(command)
     
-    def apply(
+    async def apply(
         self,
         plan_file: Optional[str] = None,
         var_file: Optional[str] = None,
@@ -211,9 +224,9 @@ class TerraformCLI:
             for key, value in var.items():
                 command.extend(["-var", f"{key}={value}"])
         
-        return self._run_command(command)
+        return await self._run_command(command)
     
-    def destroy(
+    async def destroy(
         self,
         var_file: Optional[str] = None,
         var: Optional[Dict[str, Any]] = None,
@@ -232,9 +245,9 @@ class TerraformCLI:
             for key, value in var.items():
                 command.extend(["-var", f"{key}={value}"])
         
-        return self._run_command(command)
+        return await self._run_command(command)
     
-    def show(self, plan_file: Optional[str] = None) -> TerraformResult:
+    async def show(self, plan_file: Optional[str] = None) -> TerraformResult:
         """Show Terraform plan or state"""
         command = ["show"]
         
@@ -243,7 +256,7 @@ class TerraformCLI:
         
         command.append("-json")
         
-        result = self._run_command(command)
+        result = await self._run_command(command)
         
         # Parse JSON output if successful
         if result.success:
@@ -254,7 +267,7 @@ class TerraformCLI:
         
         return result
     
-    def output(self, name: Optional[str] = None, json: bool = True) -> TerraformResult:
+    async def output(self, name: Optional[str] = None, json: bool = True) -> TerraformResult:
         """Get Terraform outputs"""
         command = ["output"]
         
@@ -264,7 +277,7 @@ class TerraformCLI:
         if name:
             command.append(name)
         
-        result = self._run_command(command)
+        result = await self._run_command(command)
         
         # Parse JSON output if successful
         if result.success and json:
@@ -275,9 +288,9 @@ class TerraformCLI:
         
         return result
     
-    def state_list(self) -> TerraformResult:
+    async def state_list(self) -> TerraformResult:
         """List resources in state"""
-        result = self._run_command(["state", "list"])
+        result = await self._run_command(["state", "list"])
         
         if result.success:
             # Parse output into list
@@ -286,14 +299,14 @@ class TerraformCLI:
         
         return result
     
-    def state_show(self, resource_address: str) -> TerraformResult:
+    async def state_show(self, resource_address: str) -> TerraformResult:
         """Show resource state"""
         command = ["state", "show", resource_address]
-        return self._run_command(command)
+        return await self._run_command(command)
     
-    def workspace_list(self) -> TerraformResult:
+    async def workspace_list(self) -> TerraformResult:
         """List workspaces"""
-        result = self._run_command(["workspace", "list"])
+        result = await self._run_command(["workspace", "list"])
         
         if result.success:
             # Parse workspace list
@@ -309,18 +322,18 @@ class TerraformCLI:
         
         return result
     
-    def workspace_select(self, workspace: str) -> TerraformResult:
+    async def workspace_select(self, workspace: str) -> TerraformResult:
         """Select workspace"""
-        return self._run_command(["workspace", "select", workspace])
+        return await self._run_command(["workspace", "select", workspace])
     
-    def workspace_new(self, workspace: str) -> TerraformResult:
+    async def workspace_new(self, workspace: str) -> TerraformResult:
         """Create new workspace"""
-        return self._run_command(["workspace", "new", workspace])
+        return await self._run_command(["workspace", "new", workspace])
     
-    def import_resource(self, resource_address: str, resource_id: str) -> TerraformResult:
+    async def import_resource(self, resource_address: str, resource_id: str) -> TerraformResult:
         """Import existing resource"""
         command = ["import", resource_address, resource_id]
-        return self._run_command(command)
+        return await self._run_command(command)
     
     def get_plan_summary(self, plan_output: str) -> Dict[str, int]:
         """Parse plan output to get summary"""

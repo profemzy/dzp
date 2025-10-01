@@ -11,8 +11,14 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.prompt import Prompt
 from rich.table import Table
+
+from prompt_toolkit import PromptSession
+from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.keys import Keys
+from prompt_toolkit.styles import Style
+from prompt_toolkit.completion import WordCompleter
 
 from src.core.logger import get_logger
 
@@ -34,6 +40,37 @@ class EnhancedCLI:
             'text': '#E8E8E8',
             'muted': '#A0A0A0'
         }
+        self.history = InMemoryHistory()
+        self.session = None
+        self._setup_prompt_session()
+    
+    def _setup_prompt_session(self):
+        """Setup prompt_toolkit session with history and key bindings"""
+        # Define slash commands for completion
+        self.slash_completer = WordCompleter([
+            'help', 'clear', 'status', 'exit', 'quit',
+            'show all resources', 'run terraform plan', 'validate configuration'
+        ], ignore_case=True)
+        
+        # Key bindings for slash commands
+        kb = KeyBindings()
+        
+        @kb.add(Keys.ControlC)
+        def _(event):
+            event.app.exit()
+        
+        # Style for prompt
+        style = Style.from_dict({
+            'prompt': '#00D4AA bold',
+        })
+        
+        self.session = PromptSession(
+            history=self.history,
+            completer=self.slash_completer,
+            key_bindings=kb,
+            style=style,
+            wrap_lines=True
+        )
     
     def show_welcome(self):
         """Show enhanced welcome screen"""
@@ -198,13 +235,13 @@ class EnhancedCLI:
 • [ #4ECDC4]show all resources[/#4ECDC4] - List all resources
 • [ #4ECDC4]upgrade the drive size of the ops-vm[/#4ECDC4] - Modify resources
 
-[dim]System Commands:[/dim]
-• [ #6C63FF]help, h[/#6C63FF] - Show this help
-• [ #6C63FF]clear, cls[/#6C63FF] - Clear screen
-• [ #6C63FF]status[/#6C63FF] - Show session status
-• [ #FF6B6B]exit, quit, q[/#FF6B6B] - Exit the agent
+[dim]Slash Commands:[/dim]
+• [ #6C63FF]/help, /h[/#6C63FF] - Show this help
+• [ #6C63FF]/clear, /cls[/#6C63FF] - Clear screen
+• [ #6C63FF]/status[/#6C63FF] - Show session status
+• [ #FF6B6B]/exit, /quit, /q[/#FF6B6B] - Exit the agent
 
-[dim]💡 Tip:[/dim] You can ask follow-up questions like [bold]what are they?[/bold] or [bold]tell me more[/bold]
+[dim]💡 Tip:[/dim] Use ↑↓ arrows for command history. Tab for autocomplete. Ask follow-up questions like [bold]what are they?[/bold] or [bold]tell me more[/bold]
         """
         
         panel = Panel(
@@ -273,17 +310,66 @@ class EnhancedCLI:
         )
         self.console.print(help_panel)
     
-    def get_command_input(self) -> str:
-        """Get command input from user"""
+    async def get_command_input(self) -> str:
+        """Get command input from user with history and slash commands"""
         try:
-            command = Prompt.ask(
-                "\n[bold #00D4AA]🔍 Enter your command[/bold #00D4AA]",
-                default="help",
-                show_default=False
+            # Prompt with slash indicator - use prompt_async for async context
+            command = await self.session.prompt_async(
+                "\n[bold #00D4AA]🔍 Enter your command (use / for slash commands)[/bold #00D4AA] "
             )
-            return command.strip()
+
+            command = command.strip()
+
+            # Handle slash commands
+            if command.startswith('/'):
+                return self._handle_slash_command(command)
+
+            # Add to history
+            if command and command != 'exit':
+                self.history.append_string(command)
+
+            return command
+
         except (KeyboardInterrupt, EOFError):
             return "exit"
+    
+    def _handle_slash_command(self, command: str) -> str:
+        """Handle slash commands"""
+        cmd_lower = command.lower().strip()
+        
+        if cmd_lower in ['/help', '/h']:
+            self.show_help()
+            return "help"
+        elif cmd_lower in ['/clear', '/cls']:
+            self.clear_screen()
+            return "clear"
+        elif cmd_lower == '/status':
+            # Note: session_duration and history need to be passed or tracked
+            # For now, just show a basic status
+            self.show_status_placeholder()
+            return "status"
+        elif cmd_lower in ['/exit', '/quit', '/q']:
+            return "exit"
+        else:
+            self.console.print(f"[#FF6B6B]Unknown slash command: {command}. Type /help for available commands.[/#FF6B6B]")
+            return ""
+    
+    def show_status_placeholder(self):
+        """Placeholder for status (requires session data)"""
+        status_text = """
+[bold #00D4AA]📊 Session Status[/bold #00D4AA]
+
+[dim]Session active with command history enabled[/dim]
+[dim]Use ↑↓ for previous commands, Tab for autocomplete[/dim]
+        """
+        panel = Panel(
+            Markdown(status_text),
+            title="📈 Status",
+            border_style="#4ECDC4",
+            padding=(1, 2)
+        )
+        self.console.print(panel)
+        self.console.print()
     
     def show_knowledge_base_progress(self, description: str):
         """Show knowledge base initialization progress"""

@@ -11,6 +11,7 @@ from src.core.config import Config
 from src.core.task_engine import TaskEngine, Task, TaskStatus
 from src.core.logger import get_logger
 from src.ai.langchain_processor import LangChainProcessor
+from src.ai.claude_processor import ClaudeProcessor
 
 logger = get_logger(__name__)
 
@@ -21,35 +22,173 @@ class TerraformAgent:
     def __init__(self, config: Config):
         self.config = config
         self.task_engine = TaskEngine(config)
-        self.langchain_processor = LangChainProcessor(config)
+
+        # Initialize AI processor based on configuration
+        if config.ai_provider == "claude":
+            logger.info("Initializing Claude processor with native tool use")
+            self.ai_processor = ClaudeProcessor(config)
+            self._setup_claude_tools()
+        else:
+            logger.info("Initializing LangChain processor (legacy mode)")
+            self.ai_processor = LangChainProcessor(config)
+            self._setup_knowledge_base()  # Only for LangChain
+
         self.running = True
         self.conversation_history = []
         self.session_start = datetime.now()
-        
+
         # Setup task engine callbacks
         self.task_engine.add_task_callback(self._on_task_update)
-        
-        # Setup RAG knowledge base
-        self._setup_knowledge_base()
     
+    def _setup_claude_tools(self):
+        """Setup tool handlers for Claude processor"""
+        if not isinstance(self.ai_processor, ClaudeProcessor):
+            return
+
+        # Register all tool handlers
+        self.ai_processor.register_tool_handler(
+            "execute_terraform_plan",
+            self._handle_terraform_plan_tool
+        )
+        self.ai_processor.register_tool_handler(
+            "execute_terraform_apply",
+            self._handle_terraform_apply_tool
+        )
+        self.ai_processor.register_tool_handler(
+            "execute_terraform_validate",
+            self._handle_terraform_validate_tool
+        )
+        self.ai_processor.register_tool_handler(
+            "execute_terraform_init",
+            self._handle_terraform_init_tool
+        )
+        self.ai_processor.register_tool_handler(
+            "execute_terraform_destroy",
+            self._handle_terraform_destroy_tool
+        )
+        self.ai_processor.register_tool_handler(
+            "get_resources",
+            self._handle_get_resources_tool
+        )
+        self.ai_processor.register_tool_handler(
+            "analyze_infrastructure",
+            self._handle_analyze_infrastructure_tool
+        )
+        self.ai_processor.register_tool_handler(
+            "get_terraform_state",
+            self._handle_get_state_tool
+        )
+
+        logger.info("Claude tool handlers registered successfully")
+
     def _setup_knowledge_base(self):
-        """Setup RAG knowledge base with Terraform files"""
+        """Setup RAG knowledge base with Terraform files (for LangChain only)"""
         try:
             terraform_files = []
             project_root = Path(self.config.project_root)
-            
+
             # Find all Terraform files
             for tf_file in project_root.rglob("*.tf"):
                 terraform_files.append(str(tf_file))
-            
+
             if terraform_files:
-                self.langchain_processor.create_knowledge_base(terraform_files)
+                self.ai_processor.create_knowledge_base(terraform_files)
                 logger.info(f"Knowledge base created with {len(terraform_files)} Terraform files")
             else:
                 logger.warning("No Terraform files found")
-                
+
         except Exception as e:
             logger.error(f"Failed to create knowledge base: {e}")
+
+    # Tool handlers for Claude
+    async def _handle_terraform_plan_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle terraform plan tool execution"""
+        detailed = tool_input.get("detailed", True)
+        result = await self.task_engine.execute_terraform_plan(detailed=detailed)
+        return result
+
+    async def _handle_terraform_apply_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle terraform apply tool execution"""
+        auto_approve = tool_input.get("auto_approve", False)
+        result = await self.task_engine.execute_terraform_apply(auto_approve=auto_approve)
+        return result
+
+    async def _handle_terraform_validate_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle terraform validate tool execution"""
+        result = await self.task_engine.execute_terraform_validate()
+        return result
+
+    async def _handle_terraform_init_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle terraform init tool execution"""
+        result = await self.task_engine.execute_terraform_init()
+        return result
+
+    async def _handle_terraform_destroy_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle terraform destroy tool execution"""
+        auto_approve = tool_input.get("auto_approve", False)
+        result = await self.task_engine.execute_terraform_destroy(auto_approve=auto_approve)
+        return result
+
+    async def _handle_get_resources_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle get resources tool execution"""
+        resource_type = tool_input.get("resource_type")
+        search_query = tool_input.get("search_query")
+
+        project_data = self.get_project_data()
+        resources = project_data.get("resources", {})
+
+        # Filter resources if criteria provided
+        if resource_type or search_query:
+            details = resources.get("details", [])
+            filtered = []
+
+            for resource in details:
+                if resource_type and resource_type.lower() not in resource.get("type", "").lower():
+                    continue
+                if search_query and search_query.lower() not in resource.get("name", "").lower():
+                    continue
+                filtered.append(resource)
+
+            return {
+                "count": len(filtered),
+                "resources": filtered
+            }
+
+        return resources
+
+    async def _handle_analyze_infrastructure_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle infrastructure analysis tool execution"""
+        analysis_type = tool_input.get("analysis_type", "summary")
+
+        project_data = self.get_project_data()
+
+        if analysis_type == "summary":
+            return {
+                "resources": project_data.get("resources", {}).get("count", 0),
+                "variables": project_data.get("variables", {}).get("count", 0),
+                "outputs": project_data.get("outputs", {}).get("count", 0),
+                "providers": project_data.get("providers", {}).get("count", 0)
+            }
+        elif analysis_type == "resources":
+            return project_data.get("resources", {})
+        elif analysis_type == "variables":
+            return project_data.get("variables", {})
+        elif analysis_type == "outputs":
+            return project_data.get("outputs", {})
+        elif analysis_type == "providers":
+            return project_data.get("providers", {})
+        else:
+            return {"error": f"Unknown analysis type: {analysis_type}"}
+
+    async def _handle_get_state_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle get terraform state tool execution"""
+        list_resources = tool_input.get("list_resources", True)
+
+        if list_resources:
+            result = await self.task_engine.execute_terraform_state_list()
+            return result
+        else:
+            return {"message": "State information requested but list_resources=False"}
     
     def _on_task_update(self, task: Task):
         """Handle task updates"""
@@ -63,6 +202,60 @@ class TerraformAgent:
     def get_project_data(self) -> Dict[str, Any]:
         """Get project data from task engine"""
         return self.task_engine.get_project_data()
+
+    def _detect_and_handle_simple_query(self, command: str) -> Optional[str]:
+        """Detect simple resource queries and handle from cache without LLM"""
+        import re
+        command_lower = command.lower().strip()
+
+        # Patterns for simple queries
+        patterns = {
+            r'how many resources|total resources|resource count': 'resource_count',
+            r'list resources|show resources|all resources': 'resource_list',
+            r'list (\w+)|show (\w+)|resources (\w+)': 'resource_type_list',  # Capture group for type
+        }
+
+        project_data = self.get_project_data()
+        resources = project_data.get('resources', {})
+
+        for pattern, handler in patterns.items():
+            match = re.search(pattern, command_lower)
+            if match:
+                if handler == 'resource_count':
+                    count = resources.get('count', 0)
+                    return f"📊 **Resource Count:** You have **{count}** Terraform resources defined in your configuration."
+                
+                elif handler == 'resource_list':
+                    count = resources.get('count', 0)
+                    by_type = resources.get('by_type', {})
+                    if count == 0:
+                        return "📭 No Terraform resources found in your configuration."
+                    
+                    response = f"📋 **Resource Overview:** You have **{count}** resources.\n\n"
+                    sorted_types = sorted(by_type.items(), key=lambda x: x[1], reverse=True)
+                    for res_type, cnt in sorted_types[:5]:  # Top 5
+                        response += f"• **{res_type}**: {cnt}\n"
+                    if len(sorted_types) > 5:
+                        response += f"... and more types.\n"
+                    return response
+                
+                elif handler == 'resource_type_list':
+                    res_type = match.group(1) or match.group(2) or match.group(3)
+                    res_type = res_type.replace('s', '')  # Plural handling
+                    details = resources.get('details', [])
+                    matching = [d for d in details if res_type.lower() in d.get('type', '').lower()]
+                    
+                    if not matching:
+                        return f"📭 No resources of type '{res_type}' found."
+                    
+                    response = f"📋 **{res_type.title()} Resources:** Found {len(matching)} matching resources.\n\n"
+                    for detail in matching[:10]:  # Limit to 10
+                        response += f"• **{detail['name']}** ({detail['type']})\n"
+                    if len(matching) > 10:
+                        response += f"... and {len(matching) - 10} more.\n"
+                    return response
+
+        return None
     
     def _detect_terraform_command(self, command: str) -> Optional[str]:
         """Detect if command is a terraform operation"""
@@ -394,9 +587,14 @@ class TerraformAgent:
                 # Execute terraform command asynchronously
                 response = await self._execute_terraform_command(command, terraform_action)
             else:
-                # Use LangChain for processing with project data
-                project_data = self.get_project_data()
-                response = self.langchain_processor.process_query(command, project_data=project_data)
+                # Check for simple query
+                simple_response = self._detect_and_handle_simple_query(command)
+                if simple_response:
+                    response = simple_response
+                else:
+                    # Use AI processor (Claude or LangChain) for processing
+                    project_data = self.get_project_data()
+                    response = await self.ai_processor.process_query(command, project_data=project_data)
             
             # Add to conversation history
             self.conversation_history.append({"role": "assistant", "content": response})
@@ -408,63 +606,7 @@ class TerraformAgent:
             logger.error(error_msg)
             return error_msg
     
-    def process_command(self, command: str) -> str:
-        """Process a command and return the response (synchronous wrapper)"""
-        if not command.strip():
-            return ""
-        
-        command_lower = command.lower()
-        
-        # Handle system commands
-        if command_lower in ['exit', 'quit', 'q']:
-            self.running = False
-            return "exit"
-        
-        if command_lower in ['help', 'h']:
-            return "help"
-        
-        if command_lower in ['clear', 'cls']:
-            return "clear"
-        
-        if command_lower == 'status':
-            return "status"
-        
-        # Add to conversation history
-        self.conversation_history.append({"role": "user", "content": command})
-        
-        try:
-            # Check if this is a terraform command
-            terraform_action = self._detect_terraform_command(command)
-            if terraform_action:
-                # For terraform commands, we need to run in async context
-                # This is a fallback for non-async usage
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        # If loop is already running, create a new one
-                        import concurrent.futures
-                        with concurrent.futures.ThreadPoolExecutor() as executor:
-                            future = executor.submit(asyncio.run, self._execute_terraform_command(command, terraform_action))
-                            response = future.result()
-                    else:
-                        response = loop.run_until_complete(self._execute_terraform_command(command, terraform_action))
-                except:
-                    # Final fallback - try to create new loop
-                    response = asyncio.run(self._execute_terraform_command(command, terraform_action))
-            else:
-                # Use LangChain for processing with project data
-                project_data = self.get_project_data()
-                response = self.langchain_processor.process_query(command, project_data=project_data)
-            
-            # Add to conversation history
-            self.conversation_history.append({"role": "assistant", "content": response})
-            
-            return response
-            
-        except Exception as e:
-            error_msg = f"Error processing command: {str(e)}"
-            logger.error(error_msg)
-            return error_msg
+    # Removed sync process_command method as app uses async version
     
     def is_running(self) -> bool:
         """Check if agent is still running"""
@@ -485,4 +627,4 @@ class TerraformAgent:
     def clear_conversation_history(self):
         """Clear conversation history"""
         self.conversation_history.clear()
-        self.langchain_processor.clear_memory()
+        self.ai_processor.clear_memory()

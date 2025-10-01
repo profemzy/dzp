@@ -15,8 +15,16 @@ load_dotenv()
 
 class Config(BaseModel):
     """Application configuration"""
-    
-    # OpenAI Configuration
+
+    # AI Provider Configuration
+    ai_provider: str = Field("claude", env="AI_PROVIDER")  # 'claude' or 'openai'
+
+    # Claude/Anthropic Configuration
+    anthropic_api_key: Optional[str] = Field(None, env="ANTHROPIC_API_KEY")
+    anthropic_model: str = Field("claude-3-5-sonnet-20241022", env="ANTHROPIC_MODEL")
+    anthropic_max_tokens: int = Field(4096, env="ANTHROPIC_MAX_TOKENS")
+
+    # OpenAI Configuration (Legacy)
     openai_api_key: Optional[str] = Field(None, env="OPENAI_API_KEY")
     openai_base_url: Optional[str] = Field(None, env="OPENAI_BASE_URL")
     openai_model: str = Field("gpt-3.5-turbo", env="OPENAI_MODEL")
@@ -46,6 +54,10 @@ class Config(BaseModel):
     def __init__(self, **data):
         # Explicitly read environment variables
         env_data = {
+            "ai_provider": os.getenv("AI_PROVIDER", "claude"),
+            "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
+            "anthropic_model": os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022"),
+            "anthropic_max_tokens": int(os.getenv("ANTHROPIC_MAX_TOKENS", "4096")),
             "openai_api_key": os.getenv("OPENAI_API_KEY"),
             "openai_base_url": os.getenv("OPENAI_BASE_URL"),
             "openai_model": os.getenv("OPENAI_MODEL", "gpt-3.5-turbo"),

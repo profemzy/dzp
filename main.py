@@ -43,9 +43,9 @@ class TerraformAgentApp:
         # Main command loop
         while self.agent.is_running():
             try:
-                # Get user input
-                command = self.cli.get_command_input()
-                
+                # Get user input (now async)
+                command = await self.cli.get_command_input()
+
                 # Process command asynchronously
                 response = await self.agent.process_command_async(command)
                 
@@ -107,4 +107,14 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        # Try to get the running event loop
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # No event loop is running, use asyncio.run()
+        asyncio.run(main())
+    else:
+        # Event loop is already running, schedule the coroutine
+        import nest_asyncio
+        nest_asyncio.apply()
+        asyncio.run(main())

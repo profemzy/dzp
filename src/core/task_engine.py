@@ -149,7 +149,7 @@ class TaskEngine:
     async def execute_terraform_init(self) -> Dict[str, Any]:
         """Execute terraform init"""
         logger.info("Executing terraform init")
-        result = self.terraform_cli.init()
+        result = await self.terraform_cli.init()
         
         return {
             "action": "terraform_init",
@@ -162,7 +162,7 @@ class TaskEngine:
     async def execute_terraform_plan(self, detailed: bool = True) -> Dict[str, Any]:
         """Execute terraform plan"""
         logger.info("Executing terraform plan")
-        result = self.terraform_cli.plan(detailed_exitcode=detailed)
+        result = await self.terraform_cli.plan(detailed_exitcode=detailed)
         
         # Parse plan output for summary
         summary = {}
@@ -181,7 +181,7 @@ class TaskEngine:
     async def execute_terraform_apply(self, auto_approve: bool = False) -> Dict[str, Any]:
         """Execute terraform apply"""
         logger.info("Executing terraform apply")
-        result = self.terraform_cli.apply(auto_approve=auto_approve)
+        result = await self.terraform_cli.apply(auto_approve=auto_approve)
         
         return {
             "action": "terraform_apply",
@@ -194,7 +194,7 @@ class TaskEngine:
     async def execute_terraform_destroy(self, auto_approve: bool = False) -> Dict[str, Any]:
         """Execute terraform destroy"""
         logger.info("Executing terraform destroy")
-        result = self.terraform_cli.destroy(auto_approve=auto_approve)
+        result = await self.terraform_cli.destroy(auto_approve=auto_approve)
         
         return {
             "action": "terraform_destroy",
@@ -207,7 +207,7 @@ class TaskEngine:
     async def execute_terraform_validate(self) -> Dict[str, Any]:
         """Execute terraform validate"""
         logger.info("Executing terraform validate")
-        result = self.terraform_cli.validate()
+        result = await self.terraform_cli.validate()
         
         return {
             "action": "terraform_validate",
@@ -220,7 +220,7 @@ class TaskEngine:
     async def execute_terraform_show(self) -> Dict[str, Any]:
         """Execute terraform show"""
         logger.info("Executing terraform show")
-        result = self.terraform_cli.show()
+        result = await self.terraform_cli.show()
         
         return {
             "action": "terraform_show",
@@ -233,7 +233,7 @@ class TaskEngine:
     async def execute_terraform_output(self, name: str = None) -> Dict[str, Any]:
         """Execute terraform output"""
         logger.info(f"Executing terraform output{' for ' + name if name else ''}")
-        result = self.terraform_cli.output(name=name)
+        result = await self.terraform_cli.output(name=name)
         
         return {
             "action": "terraform_output",
@@ -246,7 +246,7 @@ class TaskEngine:
     async def execute_terraform_state_list(self) -> Dict[str, Any]:
         """Execute terraform state list"""
         logger.info("Executing terraform state list")
-        result = self.terraform_cli.state_list()
+        result = await self.terraform_cli.state_list()
         
         return {
             "action": "terraform_state_list",

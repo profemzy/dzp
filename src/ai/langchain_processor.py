@@ -5,6 +5,9 @@ LangChain-based AI processor for conversation management and RAG
 import os
 from typing import List, Dict, Any
 
+import tiktoken
+from langchain_core.messages import SystemMessage
+
 from langchain.chains import create_retrieval_chain, create_history_aware_retriever
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -32,6 +35,10 @@ class LangChainProcessor:
         self.vector_store = None
         self.retrieval_chain = None
         self.conversation_chain = None
+        
+        self.max_history_turns = 10
+        self.max_tokens = 4000
+        self.encoding = tiktoken.get_encoding("cl100k_base")  # For gpt-4
         
         self._initialize_components()
     
@@ -190,7 +197,7 @@ Assistant:"""
         # Use modern pipe syntax
         self.conversation_chain = prompt | self.llm
     
-    def process_query(self, query: str, use_rag: bool = True, project_data: Dict[str, Any] = None) -> str:
+    async def process_query(self, query: str, use_rag: bool = True, project_data: Dict[str, Any] = None) -> str:
         """Process a user query with conversation context"""
         try:
             # If no LLM is available, use fallback with project data
@@ -201,6 +208,9 @@ Assistant:"""
             from langchain_core.messages import HumanMessage
             self.memory.add_message(HumanMessage(content=query))
             
+            # Get effective history
+            effective_history = self._get_effective_history()
+            
             # Detect if this is a follow-up question
             is_followup = self._is_followup_question(query)
             
@@ -209,22 +219,21 @@ Assistant:"""
                 response = self._answer_resource_question(query, project_data)
             elif use_rag and self.retrieval_chain and (is_followup or self._needs_terraform_context(query)):
                 # Use RAG for Terraform-specific queries
-                result = self.retrieval_chain.invoke({
+                result = await self.retrieval_chain.ainvoke({
                     "input": query,
-                    "chat_history": self.memory.messages
+                    "chat_history": effective_history
                 })
                 response = result.get("answer", "I couldn't process that query.")
-            
             else:
                 # Use general conversation chain
                 if not self.conversation_chain:
                     self._create_conversation_chain()
                 
-                # For simple chain, we need to format the prompt properly
-                chat_history_str = self._format_chat_history()
-                result = self.conversation_chain.invoke({
+                # For simple chain, use effective history
+                effective_str = self._format_chat_history(effective_history)
+                result = await self.conversation_chain.ainvoke({
                     "input": query,
-                    "chat_history": chat_history_str
+                    "chat_history": effective_str
                 })
                 
                 # Handle different response formats
@@ -240,15 +249,84 @@ Assistant:"""
             self.memory.add_message(AIMessage(content=response))
             
             return response
-                
         except Exception as e:
             logger.error(f"Error processing query: {e}")
             return f"I encountered an error processing your query: {str(e)}"
     
-    def _format_chat_history(self) -> str:
+    def _get_effective_history(self) -> List:
+        """Get effective history with summarization if too long"""
+        full_history = self.memory.messages
+        if len(full_history) <= self.max_history_turns * 2:
+            return full_history
+        
+        # Summarize old history
+        old_history = full_history[:-self.max_history_turns * 2]
+        summary = self._summarize_history(old_history)
+        
+        recent_history = full_history[-self.max_history_turns * 2:]
+        effective_history = [SystemMessage(content=f"Summary of previous conversation: {summary}")] + recent_history
+        
+        # Truncate if still over token limit
+        effective_history = self._truncate_history(effective_history)
+        
+        return effective_history
+
+    def _summarize_history(self, messages: List, max_turns: int = 5) -> str:
+        """Summarize history using LLM"""
+        if not self.llm:
+            return "Previous conversation summary unavailable."
+        
+        # Format old messages for summarization
+        formatted = []
+        for msg in messages:
+            role = "Human" if isinstance(msg, HumanMessage) else "Assistant"
+            formatted.append(f"{role}: {msg.content}")
+        
+        if len(formatted) == 0:
+            return ""
+        
+        summary_prompt = ChatPromptTemplate.from_template(
+            """Summarize the following conversation into key points relevant to Terraform infrastructure:
+            
+            Conversation:
+            {conversation}
+            
+            Summary (keep under 200 words):"""
+        )
+        
+        chain = summary_prompt | self.llm
+        result = chain.invoke({"conversation": "\n".join(formatted[-10:])})  # Last 10 exchanges
+        return result.content if hasattr(result, 'content') else str(result)
+
+    def _truncate_history(self, history: List, max_tokens: int = None) -> List:
+        """Truncate history to fit token limit"""
+        if max_tokens is None:
+            max_tokens = self.max_tokens
+        
+        # Estimate tokens for entire prompt (approximate: history + system + query)
+        # For simplicity, truncate to last N messages if over
+        if len(history) > self.max_history_turns * 2:
+            return history[-self.max_history_turns * 2:]
+        
+        # More precise: count tokens
+        total_tokens = 0
+        truncated = []
+        for msg in reversed(history):
+            msg_tokens = len(self.encoding.encode(str(msg)))
+            if total_tokens + msg_tokens > max_tokens * 0.7:  # Leave room for query/system
+                break
+            truncated.insert(0, msg)
+            total_tokens += msg_tokens
+        
+        return truncated
+    
+    def _format_chat_history(self, messages: List = None) -> str:
         """Format chat history for prompt"""
+        if messages is None:
+            messages = self.memory.messages
+        
         history = []
-        for message in self.memory.messages:
+        for message in messages:
             if hasattr(message, 'type'):
                 if message.type == "human":
                     history.append(f"Human: {message.content}")
@@ -258,8 +336,10 @@ Assistant:"""
                 # Fallback for different message types
                 if isinstance(message, HumanMessage):
                     history.append(f"Human: {message.content}")
-                elif hasattr(message, 'content'):
+                elif isinstance(message, AIMessage):
                     history.append(f"Assistant: {message.content}")
+                elif hasattr(message, 'content') and isinstance(message, SystemMessage):
+                    history.append(f"System: {message.content}")
         return "\n".join(history)
     
     def _fallback_response(self, query: str, project_data: Dict[str, Any] = None) -> str:
