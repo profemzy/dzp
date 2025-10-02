@@ -10,7 +10,6 @@ from typing import Dict, List, Any, Optional
 from src.core.config import Config
 from src.core.task_engine import TaskEngine, Task, TaskStatus
 from src.core.logger import get_logger
-from src.ai.langchain_processor import LangChainProcessor
 from src.ai.claude_processor import ClaudeProcessor
 
 logger = get_logger(__name__)
@@ -23,15 +22,10 @@ class TerraformAgent:
         self.config = config
         self.task_engine = TaskEngine(config)
 
-        # Initialize AI processor based on configuration
-        if config.ai_provider == "claude":
-            logger.info("Initializing Claude processor with native tool use")
-            self.ai_processor = ClaudeProcessor(config)
-            self._setup_claude_tools()
-        else:
-            logger.info("Initializing LangChain processor (legacy mode)")
-            self.ai_processor = LangChainProcessor(config)
-            self._setup_knowledge_base()  # Only for LangChain
+        # Initialize Claude AI processor with native tool use
+        logger.info("Initializing Claude processor with native tool use")
+        self.ai_processor = ClaudeProcessor(config)
+        self._setup_claude_tools()
 
         self.running = True
         self.conversation_history = []
@@ -42,9 +36,6 @@ class TerraformAgent:
     
     def _setup_claude_tools(self):
         """Setup tool handlers for Claude processor"""
-        if not isinstance(self.ai_processor, ClaudeProcessor):
-            return
-
         # Register all tool handlers
         self.ai_processor.register_tool_handler(
             "execute_terraform_plan",
@@ -80,25 +71,6 @@ class TerraformAgent:
         )
 
         logger.info("Claude tool handlers registered successfully")
-
-    def _setup_knowledge_base(self):
-        """Setup RAG knowledge base with Terraform files (for LangChain only)"""
-        try:
-            terraform_files = []
-            project_root = Path(self.config.project_root)
-
-            # Find all Terraform files
-            for tf_file in project_root.rglob("*.tf"):
-                terraform_files.append(str(tf_file))
-
-            if terraform_files:
-                self.ai_processor.create_knowledge_base(terraform_files)
-                logger.info(f"Knowledge base created with {len(terraform_files)} Terraform files")
-            else:
-                logger.warning("No Terraform files found")
-
-        except Exception as e:
-            logger.error(f"Failed to create knowledge base: {e}")
 
     # Tool handlers for Claude
     async def _handle_terraform_plan_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
