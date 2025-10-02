@@ -64,6 +64,12 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
+# Examples folder (contains large terraform binaries)
+examples/sample-terraform/.terraform/
+examples/sample-terraform/chroma_db/
+examples/sample-terraform/*.tfstate*
+examples/sample-terraform/.terraform.lock.hcl
+
 # Logs
 *.log
 logs/
