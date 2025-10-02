@@ -34,7 +34,8 @@ class ClaudeProcessor:
         # Advanced features configuration
         self.enable_extended_thinking = True  # For complex infrastructure reasoning
         self.enable_streaming = True  # For real-time response streaming
-        self.thinking_budget_tokens = 10000  # Budget for extended thinking
+        # Ensure thinking budget is less than max_tokens (API requirement)
+        self.thinking_budget_tokens = min(5000, config.anthropic_max_tokens - 1000)  # Budget for extended thinking
 
         # Token tracking
         self.total_input_tokens = 0
@@ -357,11 +358,18 @@ You have access to tools for executing terraform commands and querying infrastru
 
             # Add extended thinking if needed
             if use_extended_thinking:
-                logger.info("🧠 Using extended thinking mode for complex analysis")
-                request_params["thinking"] = {
-                    "type": "enabled",
-                    "budget_tokens": self.thinking_budget_tokens,
-                }
+                # Double-check that thinking budget is less than max_tokens
+                if self.thinking_budget_tokens >= self.config.anthropic_max_tokens:
+                    logger.warning(
+                        f"Thinking budget ({self.thinking_budget_tokens}) >= max_tokens ({self.config.anthropic_max_tokens}), disabling extended thinking"
+                    )
+                    use_extended_thinking = False
+                else:
+                    logger.info("🧠 Using extended thinking mode for complex analysis")
+                    request_params["thinking"] = {
+                        "type": "enabled",
+                        "budget_tokens": self.thinking_budget_tokens,
+                    }
 
             # Process with or without streaming
             if use_streaming and self.stream_callback:
