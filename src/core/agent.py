@@ -576,6 +576,15 @@ class TerraformAgent:
         
         if command_lower == 'status':
             return "status"
+
+        if command_lower == 'tokens' or command_lower == 'usage':
+            return "tokens"
+
+        if command_lower.startswith('export'):
+            return command
+
+        if command_lower.startswith('import'):
+            return command
         
         # Add to conversation history
         self.conversation_history.append({"role": "user", "content": command})
