@@ -57,6 +57,11 @@ cd dzp
 uv sync --dev
 ```
 
+*Or use the Makefile:*
+```bash
+make setup-dev  # One-time setup with all dependencies
+```
+
 *Alternative: Using pip*
 ```bash
 python -m venv venv
@@ -95,6 +100,11 @@ LOG_LEVEL=INFO
 **With uv (recommended):**
 ```bash
 uv run main.py
+```
+
+**Or use the Makefile:**
+```bash
+make run
 ```
 
 **Or use the installed script:**
@@ -336,6 +346,39 @@ dzp/
 │   ├── terraform/               # Terraform integration
 │   └── ui/                      # Terminal UI
 └── examples/                    # Sample Terraform files
+```
+
+### Development Commands
+
+The project includes a Makefile for common development tasks:
+
+```bash
+# Show all available commands
+make help
+
+# Install dependencies
+make install
+
+# Install development dependencies
+make dev
+
+# Run the application
+make run
+
+# Run tests
+make test
+
+# Run linting (ruff + mypy)
+make lint
+
+# Format code (black + ruff)
+make format
+
+# Clean cache and build artifacts
+make clean
+
+# One-time development setup
+make setup-dev
 ```
 
 ### Best Practices
