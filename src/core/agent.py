@@ -29,6 +29,11 @@ class TerraformAgent:
         self.conversation_history = []
         self.session_start = datetime.now()
 
+        # Context tracking for intelligent follow-ups
+        self.last_command = None
+        self.last_result = None
+        self.last_plan_summary = None
+
         # Setup task engine callbacks
         self.task_engine.add_task_callback(self._on_task_update)
 
@@ -188,68 +193,78 @@ class TerraformAgent:
         """Get project data from task engine"""
         return self.task_engine.get_project_data()
 
-    def _detect_and_handle_simple_query(self, command: str) -> Optional[str]:
-        """Detect simple resource queries and handle from cache without LLM"""
-        import re
+    def _build_context_aware_prompt(self, command: str) -> str:
+        """Build a context-aware prompt for Claude that includes conversation history"""
 
+        # Build context from recent interactions
+        context_parts = []
+
+        if self.last_command and self.last_result:
+            context_parts.append(f"Previous Command: {self.last_command}")
+            context_parts.append(f"Previous Result: {self._format_context_for_claude()}")
+
+            if self.last_plan_summary:
+                context_parts.append(f"Plan Summary: {self.last_plan_summary}")
+
+        if self.conversation_history:
+            # Get last few conversation exchanges for context
+            recent_history = self.conversation_history[-4:]  # Last 2 exchanges
+            if recent_history:
+                context_parts.append("\nRecent Conversation:")
+                for msg in recent_history:
+                    role = "User" if msg["role"] == "user" else "Assistant"
+                    context_parts.append(f"{role}: {msg['content'][:100]}...")
+
+        context_str = "\n".join(context_parts) if context_parts else "No previous context"
+
+        # Build the full prompt
+        full_prompt = f"""
+Context:
+{context_str}
+
+Current Question: "{command}"
+
+Instructions:
+- If this question is related to the previous terraform plan or operations, use that context to provide a specific answer
+- If it's a follow-up question about infrastructure, reference the specific resources mentioned
+- If there's no relevant context, answer based on the current terraform configuration
+- Always be helpful and specific about terraform infrastructure
+- If the user is asking about resources that will be created/modified, provide details from the most recent plan if available
+"""
+
+        return full_prompt
+
+    def _format_context_for_claude(self) -> str:
+        """Format last result for Claude context"""
+        if not self.last_result:
+            return "No previous result"
+
+        if self.last_command in ["terraform plan", "run terraform plan"]:
+            summary = self.last_result.get("summary", {})
+            if summary:
+                return f"Terraform plan shows {summary.get('add', 0)} resources to add, {summary.get('change', 0)} to change, {summary.get('destroy', 0)} to destroy"
+            else:
+                return "Terraform plan was executed"
+
+        action = self.last_result.get("action", self.last_command)
+        success = self.last_result.get("success", False)
+        return f"Last action: {action}, Success: {success}"
+
+    def _detect_simple_system_command(self, command: str) -> Optional[str]:
+        """Detect only simple system commands that don't need LLM"""
         command_lower = command.lower().strip()
 
-        # Patterns for simple queries
-        patterns = {
-            r"how many resources|total resources|resource count": "resource_count",
-            r"list resources|show resources|all resources": "resource_list",
-            r"list (\w+)|show (\w+)|resources (\w+)": "resource_type_list",  # Capture group for type
-        }
+        # Only handle very basic system commands here
+        if command_lower in ["help", "h"]:
+            return "help"
+        if command_lower == "status":
+            return "status"
+        if command_lower in ["clear", "cls"]:
+            return "clear"
+        if command_lower in ["tokens", "usage"]:
+            return "tokens"
 
-        project_data = self.get_project_data()
-        resources = project_data.get("resources", {})
-
-        for pattern, handler in patterns.items():
-            match = re.search(pattern, command_lower)
-            if match:
-                if handler == "resource_count":
-                    count = resources.get("count", 0)
-                    return f"📊 **Resource Count:** You have **{count}** Terraform resources defined in your configuration."
-
-                elif handler == "resource_list":
-                    count = resources.get("count", 0)
-                    by_type = resources.get("by_type", {})
-                    if count == 0:
-                        return "📭 No Terraform resources found in your configuration."
-
-                    response = (
-                        f"📋 **Resource Overview:** You have **{count}** resources.\n\n"
-                    )
-                    sorted_types = sorted(
-                        by_type.items(), key=lambda x: x[1], reverse=True
-                    )
-                    for res_type, cnt in sorted_types[:5]:  # Top 5
-                        response += f"• **{res_type}**: {cnt}\n"
-                    if len(sorted_types) > 5:
-                        response += "... and more types.\n"
-                    return response
-
-                elif handler == "resource_type_list":
-                    res_type = match.group(1) or match.group(2) or match.group(3)
-                    res_type = res_type.replace("s", "")  # Plural handling
-                    details = resources.get("details", [])
-                    matching = [
-                        d
-                        for d in details
-                        if res_type.lower() in d.get("type", "").lower()
-                    ]
-
-                    if not matching:
-                        return f"📭 No resources of type '{res_type}' found."
-
-                    response = f"📋 **{res_type.title()} Resources:** Found {len(matching)} matching resources.\n\n"
-                    for detail in matching[:10]:  # Limit to 10
-                        response += f"• **{detail['name']}** ({detail['type']})\n"
-                    if len(matching) > 10:
-                        response += f"... and {len(matching) - 10} more.\n"
-                    return response
-
-        return None
+        return None  # Everything else goes to LLM with context
 
     def _detect_terraform_command(self, command: str) -> Optional[str]:
         """Detect if command is a terraform operation"""
@@ -589,17 +604,10 @@ class TerraformAgent:
             self.running = False
             return "exit"
 
-        if command_lower in ["help", "h"]:
-            return "help"
-
-        if command_lower in ["clear", "cls"]:
-            return "clear"
-
-        if command_lower == "status":
-            return "status"
-
-        if command_lower == "tokens" or command_lower == "usage":
-            return "tokens"
+        # Check for simple system commands
+        system_cmd = self._detect_simple_system_command(command)
+        if system_cmd:
+            return system_cmd
 
         if command_lower.startswith("export"):
             return command
@@ -618,17 +626,18 @@ class TerraformAgent:
                 response = await self._execute_terraform_command(
                     command, terraform_action
                 )
+                # Update context tracking
+                self.last_command = command
+                self.last_result = self._extract_result_from_response(response, terraform_action)
+                if terraform_action == "plan":
+                    self.last_plan_summary = self.last_result.get("summary") if self.last_result else None
             else:
-                # Check for simple query
-                simple_response = self._detect_and_handle_simple_query(command)
-                if simple_response:
-                    response = simple_response
-                else:
-                    # Use AI processor (Claude or LangChain) for processing
-                    project_data = self.get_project_data()
-                    response = await self.ai_processor.process_query(
-                        command, project_data=project_data
-                    )
+                # Use context-aware LLM processing for ALL non-terraform commands
+                context_prompt = self._build_context_aware_prompt(command)
+                response = await self.ai_processor.process_query(
+                    context_prompt,
+                    project_data=self.get_project_data()
+                )
 
             # Add to conversation history
             self.conversation_history.append({"role": "assistant", "content": response})
@@ -650,6 +659,37 @@ class TerraformAgent:
         """Stop the agent"""
         self.running = False
 
+    def _extract_result_from_response(self, response: str, action: str) -> Optional[Dict[str, Any]]:
+        """Extract structured result from formatted response"""
+        try:
+            # This is a simplified extraction - in a real implementation,
+            # we'd want to store the raw result from the task engine
+            result = {
+                "action": f"terraform_{action}",
+                "success": "✅" in response or "Successful" in response,
+                "summary": {}
+            }
+
+            # Extract summary for plan commands
+            if action == "plan" and "Plan Summary:" in response:
+                # Simple extraction of plan summary
+                import re
+                add_match = re.search(r"Resources to add: (\d+)", response)
+                change_match = re.search(r"Resources to change: (\d+)", response)
+                destroy_match = re.search(r"Resources to destroy: (\d+)", response)
+
+                if add_match or change_match or destroy_match:
+                    result["summary"] = {
+                        "add": int(add_match.group(1)) if add_match else 0,
+                        "change": int(change_match.group(1)) if change_match else 0,
+                        "destroy": int(destroy_match.group(1)) if destroy_match else 0
+                    }
+
+            return result
+        except Exception as e:
+            logger.error(f"Error extracting result from response: {e}")
+            return None
+
     def get_session_duration(self) -> datetime:
         """Get session duration"""
         return datetime.now() - self.session_start
@@ -662,3 +702,7 @@ class TerraformAgent:
         """Clear conversation history"""
         self.conversation_history.clear()
         self.ai_processor.clear_memory()
+        # Also clear context tracking
+        self.last_command = None
+        self.last_result = None
+        self.last_plan_summary = None

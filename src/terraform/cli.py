@@ -99,8 +99,20 @@ class TerraformCLI:
             return_code = await process.wait()
             duration = time.time() - start_time
 
+            # Check if this is a terraform plan command with detailed_exitcode
+            is_plan_with_detailed_exitcode = (
+                "-detailed-exitcode" in full_command and
+                "plan" in full_command
+            )
+
+            # For terraform plan with detailed_exitcode, exit codes 0 and 2 are both success
+            if is_plan_with_detailed_exitcode:
+                success = return_code in [0, 2]
+            else:
+                success = return_code == 0
+
             terraform_result = TerraformResult(
-                success=return_code == 0,
+                success=success,
                 return_code=return_code,
                 stdout=stdout_str,
                 stderr=stderr_str,

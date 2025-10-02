@@ -9,7 +9,9 @@ An intelligent Infrastructure as Code agent powered by **Claude AI** with **nati
 - **Extended Thinking**: Deep reasoning for complex infrastructure decisions
 - **Streaming Responses**: Real-time response delivery for better UX
 - **8 Terraform Tools**: Plan, apply, validate, init, destroy, and more
+- **🧠 Intelligent Follow-up Questions**: LLM-powered semantic understanding - no brittle patterns!
 - **Context-Aware**: Maintains conversation memory and understands follow-ups
+- **Natural Language Processing**: Handles any way of phrasing questions in English
 - **Prompt Caching**: 90% token cost reduction through intelligent caching
 
 ### 🏗️ Terraform Operations
@@ -135,6 +137,26 @@ python main.py
 > Are these resources deployed?
 ```
 
+#### 🧠 Intelligent Follow-up Conversations
+```bash
+# Start with a terraform operation
+> terraform plan
+✅ Terraform Plan Successful - 10 resources to add
+
+# Ask any follow-up question - the agent understands context!
+> What resources will be created?
+🏗️ Resources to be Created: Resource Groups, VMs, Networks, Storage...
+
+> Tell me more about the virtual machine
+💻 Linux VM: Ubuntu 22.04 LTS, Standard_B1s size, with SSH access
+
+> How much will this cost per month?
+💰 Estimated cost: ~$45-65/month based on selected resources
+
+> Are the security rules appropriate?
+🔒 Security Analysis: NSG allows SSH (port 22), HTTP (80), HTTPS (443)
+```
+
 #### Advanced Queries (Extended Thinking)
 ```
 > Should I migrate from VMs to Kubernetes?
@@ -192,6 +214,39 @@ src/
 6. **get_resources** - Query resource information
 7. **analyze_infrastructure** - Analyze configuration
 8. **get_terraform_state** - Check deployment state
+
+## 🧠 Natural Language Processing
+
+### LLM-Powered Follow-up Intelligence
+
+Unlike traditional chatbots that use brittle regex patterns, DZP IAC Agent leverages Claude's semantic understanding:
+
+**❌ Traditional Approach (Brittle):**
+```python
+# Fails with different phrasing!
+patterns = {
+    r"what resources": "handle_resources",
+    r"list resources": "handle_resources",
+    r"show resources": "handle_resources"
+}
+```
+
+**✅ Our Approach (Intelligent):**
+```python
+# Claude understands any phrasing naturally!
+"What resources will be created?"  ✅
+"Which infrastructure gets deployed?" ✅
+"Tell me about the resources" ✅
+"What will be provisioned?" ✅
+```
+
+### Context-Aware Conversations
+
+The agent maintains full context of your conversation:
+- **Previous Commands**: Remembers last terraform operations
+- **Results History**: Keeps plan summaries and outputs
+- **Conversation Flow**: Understands follow-up relationships
+- **Semantic Context**: Uses Claude to interpret meaning, not just patterns
 
 ## 📊 Advanced Features
 
