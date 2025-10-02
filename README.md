@@ -42,6 +42,7 @@ An intelligent Infrastructure as Code agent powered by **Claude AI** with **nati
 - Python 3.8+
 - Anthropic API key (get one at https://console.anthropic.com)
 - Terraform CLI installed
+- uv package manager (recommended) - Install with: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 
 ### Installation
 
@@ -51,18 +52,24 @@ git clone <repository-url>
 cd dzp
 ```
 
-2. **Create virtual environment**
+2. **Install with uv (recommended)**
+```bash
+uv sync --dev
+```
+
+*Or use the Makefile:*
+```bash
+make setup-dev  # One-time setup with all dependencies
+```
+
+*Alternative: Using pip*
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -e .
 ```
 
-3. **Install dependencies**
-```bash
-pip install -r requirements.txt
-```
-
-4. **Configure environment variables**
+3. **Configure environment variables**
 ```bash
 cp .env.example .env
 # Edit .env with your Anthropic API key
@@ -90,6 +97,22 @@ LOG_LEVEL=INFO
 
 ### Start the Agent
 
+**With uv (recommended):**
+```bash
+uv run main.py
+```
+
+**Or use the Makefile:**
+```bash
+make run
+```
+
+**Or use the installed script:**
+```bash
+uv run tf-agent
+```
+
+*Alternative (pip):*
 ```bash
 python main.py
 ```
@@ -310,18 +333,52 @@ Cache savings: 87%
 ```
 dzp/
 ├── main.py                      # Application entry point
-├── requirements.txt             # Python dependencies
+├── pyproject.toml               # Project configuration and dependencies
+├── uv.lock                      # Locked dependency versions
 ├── .env.example                 # Environment template
 ├── README.md                    # This file
 ├── docs/
-│   ├── CLAUDE_INTEGRATION.md    # Claude setup guide
-│   └── ADVANCED_FEATURES.md     # Advanced features guide
+│   ├── CHEATSHEET.md            # Quick reference guide
+│   └── FUTURE_ENHANCEMENTS.md   # Future improvements
 ├── src/                         # Source code
 │   ├── ai/                      # Claude processor
 │   ├── core/                    # Business logic
 │   ├── terraform/               # Terraform integration
 │   └── ui/                      # Terminal UI
 └── examples/                    # Sample Terraform files
+```
+
+### Development Commands
+
+The project includes a Makefile for common development tasks:
+
+```bash
+# Show all available commands
+make help
+
+# Install dependencies
+make install
+
+# Install development dependencies
+make dev
+
+# Run the application
+make run
+
+# Run tests
+make test
+
+# Run linting (ruff + mypy)
+make lint
+
+# Format code (black + ruff)
+make format
+
+# Clean cache and build artifacts
+make clean
+
+# One-time development setup
+make setup-dev
 ```
 
 ### Best Practices
