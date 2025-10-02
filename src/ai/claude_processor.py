@@ -10,7 +10,7 @@ Uses Anthropic's Claude API with advanced features:
 
 import asyncio
 import json
-from typing import List, Dict, Any, Optional, Callable
+from typing import Any, Callable, Dict, List, Optional
 
 from anthropic import Anthropic, AsyncAnthropic
 from anthropic.types import Message, TextBlock, ToolUseBlock, Usage
@@ -81,10 +81,10 @@ class ClaudeProcessor:
                         "detailed": {
                             "type": "boolean",
                             "description": "Whether to show detailed exit codes",
-                            "default": True
+                            "default": True,
                         }
-                    }
-                }
+                    },
+                },
             },
             {
                 "name": "execute_terraform_apply",
@@ -95,18 +95,15 @@ class ClaudeProcessor:
                         "auto_approve": {
                             "type": "boolean",
                             "description": "Skip interactive approval (use with caution)",
-                            "default": False
+                            "default": False,
                         }
-                    }
-                }
+                    },
+                },
             },
             {
                 "name": "execute_terraform_validate",
                 "description": "Execute 'terraform validate' to check if the Terraform configuration is syntactically valid and internally consistent. Use this when user asks about configuration validity or wants to check for errors.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {}
-                }
+                "input_schema": {"type": "object", "properties": {}},
             },
             {
                 "name": "execute_terraform_init",
@@ -117,10 +114,10 @@ class ClaudeProcessor:
                         "upgrade": {
                             "type": "boolean",
                             "description": "Upgrade providers to latest versions",
-                            "default": False
+                            "default": False,
                         }
-                    }
-                }
+                    },
+                },
             },
             {
                 "name": "execute_terraform_destroy",
@@ -131,10 +128,10 @@ class ClaudeProcessor:
                         "auto_approve": {
                             "type": "boolean",
                             "description": "Skip interactive approval (use with extreme caution)",
-                            "default": False
+                            "default": False,
                         }
-                    }
-                }
+                    },
+                },
             },
             {
                 "name": "get_resources",
@@ -144,14 +141,14 @@ class ClaudeProcessor:
                     "properties": {
                         "resource_type": {
                             "type": "string",
-                            "description": "Filter by specific resource type (e.g., 'azurerm_virtual_machine')"
+                            "description": "Filter by specific resource type (e.g., 'azurerm_virtual_machine')",
                         },
                         "search_query": {
                             "type": "string",
-                            "description": "Search term to filter resource names"
-                        }
-                    }
-                }
+                            "description": "Search term to filter resource names",
+                        },
+                    },
+                },
             },
             {
                 "name": "analyze_infrastructure",
@@ -161,12 +158,18 @@ class ClaudeProcessor:
                     "properties": {
                         "analysis_type": {
                             "type": "string",
-                            "enum": ["summary", "resources", "variables", "outputs", "providers"],
-                            "description": "Type of analysis to perform"
+                            "enum": [
+                                "summary",
+                                "resources",
+                                "variables",
+                                "outputs",
+                                "providers",
+                            ],
+                            "description": "Type of analysis to perform",
                         }
                     },
-                    "required": ["analysis_type"]
-                }
+                    "required": ["analysis_type"],
+                },
             },
             {
                 "name": "get_terraform_state",
@@ -177,14 +180,16 @@ class ClaudeProcessor:
                         "list_resources": {
                             "type": "boolean",
                             "description": "List all resources in state",
-                            "default": True
+                            "default": True,
                         }
-                    }
-                }
-            }
+                    },
+                },
+            },
         ]
 
-    def _build_system_context(self, project_data: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+    def _build_system_context(
+        self, project_data: Dict[str, Any] = None
+    ) -> List[Dict[str, Any]]:
         """Build system context with prompt caching for cost efficiency"""
 
         system_messages = [
@@ -215,57 +220,71 @@ class ClaudeProcessor:
 
 **Available Tools**:
 You have access to tools for executing terraform commands and querying infrastructure. Use them appropriately based on user requests.""",
-                "cache_control": {"type": "ephemeral"}
+                "cache_control": {"type": "ephemeral"},
             }
         ]
 
         # Add terraform context with caching for cost efficiency
         if project_data:
-            resources = project_data.get('resources', {})
-            variables = project_data.get('variables', {})
-            outputs = project_data.get('outputs', {})
-            providers = project_data.get('providers', {})
+            resources = project_data.get("resources", {})
+            variables = project_data.get("variables", {})
+            outputs = project_data.get("outputs", {})
+            providers = project_data.get("providers", {})
 
             # Build comprehensive context
             context_parts = [
                 "## Current Infrastructure Overview\n",
-                f"\n**Resources**: {resources.get('count', 0)} total resources defined"
+                f"\n**Resources**: {resources.get('count', 0)} total resources defined",
             ]
 
             # Add resource breakdown
-            by_type = resources.get('by_type', {})
+            by_type = resources.get("by_type", {})
             if by_type:
                 context_parts.append("\n\n**Resource Types**:")
-                for resource_type, count in sorted(by_type.items(), key=lambda x: x[1], reverse=True):
+                for resource_type, count in sorted(
+                    by_type.items(), key=lambda x: x[1], reverse=True
+                ):
                     context_parts.append(f"\n- {resource_type}: {count}")
 
             # Add variables info
-            if variables.get('count', 0) > 0:
-                context_parts.append(f"\n\n**Variables**: {variables['count']} configuration variables defined")
+            if variables.get("count", 0) > 0:
+                context_parts.append(
+                    f"\n\n**Variables**: {variables['count']} configuration variables defined"
+                )
 
             # Add outputs info
-            if outputs.get('count', 0) > 0:
-                context_parts.append(f"\n\n**Outputs**: {outputs['count']} output values defined")
+            if outputs.get("count", 0) > 0:
+                context_parts.append(
+                    f"\n\n**Outputs**: {outputs['count']} output values defined"
+                )
 
             # Add providers info
-            if providers.get('count', 0) > 0:
-                provider_list = [p.get('name', 'unknown') for p in providers.get('details', [])]
-                context_parts.append(f"\n\n**Providers**: {', '.join(set(provider_list))}")
+            if providers.get("count", 0) > 0:
+                provider_list = [
+                    p.get("name", "unknown") for p in providers.get("details", [])
+                ]
+                context_parts.append(
+                    f"\n\n**Providers**: {', '.join(set(provider_list))}"
+                )
 
             # Add resource details (limited to avoid token bloat)
-            resource_details = resources.get('details', [])
+            resource_details = resources.get("details", [])
             if resource_details:
                 context_parts.append("\n\n**Sample Resources** (first 10):")
                 for resource in resource_details[:10]:
-                    context_parts.append(f"\n- `{resource.get('name')}` ({resource.get('type')})")
+                    context_parts.append(
+                        f"\n- `{resource.get('name')}` ({resource.get('type')})"
+                    )
 
-            context_text = ''.join(context_parts)
+            context_text = "".join(context_parts)
 
-            system_messages.append({
-                "type": "text",
-                "text": context_text,
-                "cache_control": {"type": "ephemeral"}
-            })
+            system_messages.append(
+                {
+                    "type": "text",
+                    "text": context_text,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            )
 
             # Cache the context
             self.terraform_context_cache = context_text
@@ -280,9 +299,21 @@ You have access to tools for executing terraform commands and querying infrastru
         """Determine if query requires extended thinking"""
         # Use extended thinking for complex queries
         thinking_keywords = [
-            "analyze", "compare", "optimize", "recommend", "best practice",
-            "should i", "what if", "impact", "risk", "security",
-            "dependencies", "plan", "strategy", "migrate", "upgrade"
+            "analyze",
+            "compare",
+            "optimize",
+            "recommend",
+            "best practice",
+            "should i",
+            "what if",
+            "impact",
+            "risk",
+            "security",
+            "dependencies",
+            "plan",
+            "strategy",
+            "migrate",
+            "upgrade",
         ]
         query_lower = query.lower()
         return any(keyword in query_lower for keyword in thinking_keywords)
@@ -292,7 +323,7 @@ You have access to tools for executing terraform commands and querying infrastru
         query: str,
         project_data: Dict[str, Any] = None,
         use_tools: bool = True,
-        use_streaming: bool = None
+        use_streaming: bool = None,
     ) -> str:
         """Process user query using Claude with tool use and advanced features"""
 
@@ -305,16 +336,12 @@ You have access to tools for executing terraform commands and querying infrastru
 
         # Check if extended thinking should be used
         use_extended_thinking = (
-            self.enable_extended_thinking and
-            self._should_use_extended_thinking(query)
+            self.enable_extended_thinking and self._should_use_extended_thinking(query)
         )
 
         try:
             # Add user message to conversation history
-            self.conversation_history.append({
-                "role": "user",
-                "content": query
-            })
+            self.conversation_history.append({"role": "user", "content": query})
 
             # Build system context with prompt caching
             system_messages = self._build_system_context(project_data)
@@ -325,7 +352,7 @@ You have access to tools for executing terraform commands and querying infrastru
                 "max_tokens": self.config.anthropic_max_tokens,
                 "system": system_messages,
                 "tools": self.tools if use_tools else [],
-                "messages": self.conversation_history
+                "messages": self.conversation_history,
             }
 
             # Add extended thinking if needed
@@ -333,12 +360,14 @@ You have access to tools for executing terraform commands and querying infrastru
                 logger.info("🧠 Using extended thinking mode for complex analysis")
                 request_params["thinking"] = {
                     "type": "enabled",
-                    "budget_tokens": self.thinking_budget_tokens
+                    "budget_tokens": self.thinking_budget_tokens,
                 }
 
             # Process with or without streaming
             if use_streaming and self.stream_callback:
-                response_text = await self._process_with_streaming(request_params, system_messages, use_tools)
+                response_text = await self._process_with_streaming(
+                    request_params, system_messages, use_tools
+                )
             else:
                 response = await self.async_client.messages.create(**request_params)
 
@@ -347,16 +376,19 @@ You have access to tools for executing terraform commands and querying infrastru
 
                 # Handle tool use if Claude wants to use tools
                 if response.stop_reason == "tool_use":
-                    response_text = await self._handle_tool_use(response, system_messages)
+                    response_text = await self._handle_tool_use(
+                        response, system_messages
+                    )
                 else:
                     # Extract text response (including thinking if present)
-                    response_text = self._extract_text_from_response(response, include_thinking=use_extended_thinking)
+                    response_text = self._extract_text_from_response(
+                        response, include_thinking=use_extended_thinking
+                    )
 
             # Add assistant response to history
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": response_text
-            })
+            self.conversation_history.append(
+                {"role": "assistant", "content": response_text}
+            )
 
             logger.debug(f"Claude response: {response_text[:200]}...")
             return response_text
@@ -365,7 +397,9 @@ You have access to tools for executing terraform commands and querying infrastru
             logger.error(f"Error processing query with Claude: {e}")
             return f"I encountered an error processing your query: {str(e)}\n\nPlease try rephrasing your question or check your API configuration."
 
-    async def _handle_tool_use(self, response: Message, system_messages: List[Dict]) -> str:
+    async def _handle_tool_use(
+        self, response: Message, system_messages: List[Dict]
+    ) -> str:
         """Handle tool use by executing tools and getting final response"""
 
         tool_results = []
@@ -382,28 +416,32 @@ You have access to tools for executing terraform commands and querying infrastru
                 tool_name = block.name
                 tool_input = block.input
 
-                logger.info(f"Claude is using tool: {tool_name} with input: {tool_input}")
+                logger.info(
+                    f"Claude is using tool: {tool_name} with input: {tool_input}"
+                )
 
                 # Execute tool handler
                 result = await self._execute_tool(tool_name, tool_input)
 
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": block.id,
-                    "content": json.dumps(result) if not isinstance(result, str) else result
-                })
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": (
+                            json.dumps(result)
+                            if not isinstance(result, str)
+                            else result
+                        ),
+                    }
+                )
 
         # Add assistant message with tool use to history
-        self.conversation_history.append({
-            "role": "assistant",
-            "content": assistant_content
-        })
+        self.conversation_history.append(
+            {"role": "assistant", "content": assistant_content}
+        )
 
         # Add tool results to history
-        self.conversation_history.append({
-            "role": "user",
-            "content": tool_results
-        })
+        self.conversation_history.append({"role": "user", "content": tool_results})
 
         # Get final response from Claude after tool execution
         final_response = self.client.messages.create(
@@ -411,7 +449,7 @@ You have access to tools for executing terraform commands and querying infrastru
             max_tokens=self.config.anthropic_max_tokens,
             system=system_messages,
             tools=self.tools,
-            messages=self.conversation_history
+            messages=self.conversation_history,
         )
 
         # Handle potential nested tool use (recursive)
@@ -436,14 +474,14 @@ You have access to tools for executing terraform commands and querying infrastru
             logger.warning(f"No handler registered for tool: {tool_name}")
             return {
                 "error": f"Tool handler not registered: {tool_name}",
-                "available_tools": list(self.tool_handlers.keys())
+                "available_tools": list(self.tool_handlers.keys()),
             }
 
     async def _process_with_streaming(
         self,
         request_params: Dict[str, Any],
         system_messages: List[Dict],
-        use_tools: bool
+        use_tools: bool,
     ) -> str:
         """Process query with streaming for real-time response"""
         accumulated_text = []
@@ -454,22 +492,22 @@ You have access to tools for executing terraform commands and querying infrastru
         async with self.async_client.messages.stream(**request_params) as stream:
             async for event in stream:
                 # Handle different event types
-                if hasattr(event, 'type'):
+                if hasattr(event, "type"):
                     if event.type == "content_block_start":
                         # New content block starting
-                        if hasattr(event, 'content_block'):
+                        if hasattr(event, "content_block"):
                             if event.content_block.type == "tool_use":
                                 current_tool_use = {
                                     "id": event.content_block.id,
                                     "name": event.content_block.name,
-                                    "input": ""
+                                    "input": "",
                                 }
                             elif event.content_block.type == "thinking":
                                 pass  # Thinking block started
 
                     elif event.type == "content_block_delta":
                         # Content delta received
-                        if hasattr(event, 'delta'):
+                        if hasattr(event, "delta"):
                             if event.delta.type == "text_delta":
                                 # Regular text
                                 text = event.delta.text
@@ -487,7 +525,9 @@ You have access to tools for executing terraform commands and querying infrastru
                             elif event.delta.type == "input_json_delta":
                                 # Tool input delta
                                 if current_tool_use:
-                                    current_tool_use["input"] += event.delta.partial_json
+                                    current_tool_use[
+                                        "input"
+                                    ] += event.delta.partial_json
 
                     elif event.type == "content_block_stop":
                         # Content block finished
@@ -497,9 +537,9 @@ You have access to tools for executing terraform commands and querying infrastru
 
                     elif event.type == "message_stop":
                         # Message complete - track usage
-                        if hasattr(stream, 'get_final_message'):
+                        if hasattr(stream, "get_final_message"):
                             final_message = await stream.get_final_message()
-                            if hasattr(final_message, 'usage'):
+                            if hasattr(final_message, "usage"):
                                 self._track_token_usage(final_message.usage)
 
         # If tools were used, execute them
@@ -512,9 +552,15 @@ You have access to tools for executing terraform commands and querying infrastru
                 # Parse tool input safely
                 if isinstance(tool_use["input"], str):
                     try:
-                        tool_input = json.loads(tool_use["input"]) if tool_use["input"].strip() else {}
+                        tool_input = (
+                            json.loads(tool_use["input"])
+                            if tool_use["input"].strip()
+                            else {}
+                        )
                     except json.JSONDecodeError as e:
-                        logger.error(f"Failed to parse tool input: {tool_use['input']}, error: {e}")
+                        logger.error(
+                            f"Failed to parse tool input: {tool_use['input']}, error: {e}"
+                        )
                         tool_input = {}
                 else:
                     tool_input = tool_use["input"]
@@ -522,28 +568,32 @@ You have access to tools for executing terraform commands and querying infrastru
                 result = await self._execute_tool(tool_use["name"], tool_input)
 
                 # Build assistant content with proper structure
-                assistant_content.append({
-                    "type": "tool_use",
-                    "id": tool_use["id"],
-                    "name": tool_use["name"],
-                    "input": tool_input  # Already parsed JSON
-                })
+                assistant_content.append(
+                    {
+                        "type": "tool_use",
+                        "id": tool_use["id"],
+                        "name": tool_use["name"],
+                        "input": tool_input,  # Already parsed JSON
+                    }
+                )
 
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": tool_use["id"],
-                    "content": json.dumps(result) if not isinstance(result, str) else result
-                })
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": tool_use["id"],
+                        "content": (
+                            json.dumps(result)
+                            if not isinstance(result, str)
+                            else result
+                        ),
+                    }
+                )
 
             # Add tool results and get final response
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": assistant_content
-            })
-            self.conversation_history.append({
-                "role": "user",
-                "content": tool_results
-            })
+            self.conversation_history.append(
+                {"role": "assistant", "content": assistant_content}
+            )
+            self.conversation_history.append({"role": "user", "content": tool_results})
 
             # Get final response after tool execution (with streaming)
             final_accumulated_text = []
@@ -553,30 +603,37 @@ You have access to tools for executing terraform commands and querying infrastru
                 max_tokens=self.config.anthropic_max_tokens,
                 system=system_messages,
                 tools=[],  # No more tools needed
-                messages=self.conversation_history
+                messages=self.conversation_history,
             ) as stream:
                 async for event in stream:
-                    if hasattr(event, 'type'):
+                    if hasattr(event, "type"):
                         if event.type == "content_block_delta":
-                            if hasattr(event, 'delta') and event.delta.type == "text_delta":
+                            if (
+                                hasattr(event, "delta")
+                                and event.delta.type == "text_delta"
+                            ):
                                 text = event.delta.text
                                 final_accumulated_text.append(text)
                                 if self.stream_callback:
                                     self.stream_callback(text)
                         elif event.type == "message_stop":
-                            if hasattr(stream, 'get_final_message'):
+                            if hasattr(stream, "get_final_message"):
                                 final_message = await stream.get_final_message()
-                                if hasattr(final_message, 'usage'):
+                                if hasattr(final_message, "usage"):
                                     self._track_token_usage(final_message.usage)
 
-            return ''.join(final_accumulated_text) if final_accumulated_text else "I couldn't generate a response."
+            return (
+                "".join(final_accumulated_text)
+                if final_accumulated_text
+                else "I couldn't generate a response."
+            )
 
         # Return accumulated text
-        full_text = ''.join(accumulated_text)
+        full_text = "".join(accumulated_text)
 
         # Include thinking if available
         if accumulated_thinking:
-            thinking_summary = ''.join(accumulated_thinking)
+            thinking_summary = "".join(accumulated_thinking)
             logger.info(f"Extended thinking: {thinking_summary[:200]}...")
             # Optionally include thinking in response
             # full_text = f"**[Reasoning]**: {thinking_summary}\n\n{full_text}"
@@ -589,14 +646,19 @@ You have access to tools for executing terraform commands and querying infrastru
         self.total_output_tokens += usage.output_tokens
 
         # Track cache tokens if available
-        if hasattr(usage, 'cache_creation_input_tokens') and usage.cache_creation_input_tokens:
+        if (
+            hasattr(usage, "cache_creation_input_tokens")
+            and usage.cache_creation_input_tokens
+        ):
             self.total_cache_creation_tokens += usage.cache_creation_input_tokens
 
-        if hasattr(usage, 'cache_read_input_tokens') and usage.cache_read_input_tokens:
+        if hasattr(usage, "cache_read_input_tokens") and usage.cache_read_input_tokens:
             self.total_cache_read_tokens += usage.cache_read_input_tokens
 
-        logger.debug(f"Token usage - Input: {usage.input_tokens}, Output: {usage.output_tokens}, "
-                    f"Cache read: {getattr(usage, 'cache_read_input_tokens', 0)}")
+        logger.debug(
+            f"Token usage - Input: {usage.input_tokens}, Output: {usage.output_tokens}, "
+            f"Cache read: {getattr(usage, 'cache_read_input_tokens', 0)}"
+        )
 
     def get_token_usage_stats(self) -> Dict[str, int]:
         """Get comprehensive token usage statistics"""
@@ -605,9 +667,15 @@ You have access to tools for executing terraform commands and querying infrastru
 
         # Estimate cost (approximate pricing for Claude 3.5 Sonnet)
         input_cost = (self.total_input_tokens / 1_000_000) * 3.00  # $3 per 1M tokens
-        output_cost = (self.total_output_tokens / 1_000_000) * 15.00  # $15 per 1M tokens
-        cache_cost = (self.total_cache_read_tokens / 1_000_000) * 0.30  # $0.30 per 1M cached tokens
-        cache_creation_cost = (self.total_cache_creation_tokens / 1_000_000) * 3.75  # $3.75 per 1M tokens
+        output_cost = (
+            self.total_output_tokens / 1_000_000
+        ) * 15.00  # $15 per 1M tokens
+        cache_cost = (
+            self.total_cache_read_tokens / 1_000_000
+        ) * 0.30  # $0.30 per 1M cached tokens
+        cache_creation_cost = (
+            self.total_cache_creation_tokens / 1_000_000
+        ) * 3.75  # $3.75 per 1M tokens
 
         total_cost = input_cost + output_cost + cache_cost + cache_creation_cost
 
@@ -622,10 +690,12 @@ You have access to tools for executing terraform commands and querying infrastru
             "input_cost_usd": round(input_cost, 4),
             "output_cost_usd": round(output_cost, 4),
             "cache_cost_usd": round(cache_cost, 4),
-            "cache_creation_cost_usd": round(cache_creation_cost, 4)
+            "cache_creation_cost_usd": round(cache_creation_cost, 4),
         }
 
-    def _extract_text_from_response(self, response: Message, include_thinking: bool = False) -> str:
+    def _extract_text_from_response(
+        self, response: Message, include_thinking: bool = False
+    ) -> str:
         """Extract text content from Claude's response"""
         text_parts = []
         thinking_parts = []
@@ -633,24 +703,30 @@ You have access to tools for executing terraform commands and querying infrastru
         for block in response.content:
             if isinstance(block, TextBlock):
                 text_parts.append(block.text)
-            elif hasattr(block, 'text'):
+            elif hasattr(block, "text"):
                 text_parts.append(block.text)
-            elif hasattr(block, 'type') and block.type == "thinking":
-                if hasattr(block, 'thinking'):
+            elif hasattr(block, "type") and block.type == "thinking":
+                if hasattr(block, "thinking"):
                     thinking_parts.append(block.thinking)
 
         # Optionally include thinking in the response
-        result = '\n'.join(text_parts) if text_parts else "I couldn't generate a response."
+        result = (
+            "\n".join(text_parts) if text_parts else "I couldn't generate a response."
+        )
 
         if include_thinking and thinking_parts:
-            thinking_summary = '\n'.join(thinking_parts)
-            logger.info(f"🧠 Extended thinking used: {len(thinking_summary)} characters")
+            thinking_summary = "\n".join(thinking_parts)
+            logger.info(
+                f"🧠 Extended thinking used: {len(thinking_summary)} characters"
+            )
             # Optionally prepend thinking to response
             # result = f"**[Internal Reasoning]**:\n{thinking_summary}\n\n{result}"
 
         return result
 
-    def _fallback_response(self, query: str, project_data: Dict[str, Any] = None) -> str:
+    def _fallback_response(
+        self, query: str, project_data: Dict[str, Any] = None
+    ) -> str:
         """Fallback response when Claude is not available"""
         return """I'm currently unable to process your query because the Claude AI API is not configured.
 
@@ -662,10 +738,7 @@ To enable Claude-powered responses:
 In the meantime, you can still use basic commands like 'status', 'help', or 'clear'."""
 
     async def process_with_image(
-        self,
-        query: str,
-        image_path: str,
-        project_data: Dict[str, Any] = None
+        self, query: str, image_path: str, project_data: Dict[str, Any] = None
     ) -> str:
         """Process query with an image (e.g., infrastructure diagram)"""
         import base64
@@ -675,39 +748,42 @@ In the meantime, you can still use basic commands like 'status', 'help', or 'cle
 
         try:
             # Read and encode image
-            with open(image_path, 'rb') as image_file:
-                image_data = base64.standard_b64encode(image_file.read()).decode('utf-8')
+            with open(image_path, "rb") as image_file:
+                image_data = base64.standard_b64encode(image_file.read()).decode(
+                    "utf-8"
+                )
 
             # Determine media type
-            if image_path.lower().endswith('.png'):
+            if image_path.lower().endswith(".png"):
                 media_type = "image/png"
-            elif image_path.lower().endswith('.jpg') or image_path.lower().endswith('.jpeg'):
+            elif image_path.lower().endswith(".jpg") or image_path.lower().endswith(
+                ".jpeg"
+            ):
                 media_type = "image/jpeg"
-            elif image_path.lower().endswith('.gif'):
+            elif image_path.lower().endswith(".gif"):
                 media_type = "image/gif"
-            elif image_path.lower().endswith('.webp'):
+            elif image_path.lower().endswith(".webp"):
                 media_type = "image/webp"
             else:
                 return f"Unsupported image format: {image_path}"
 
             # Add user message with image
-            self.conversation_history.append({
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": image_data
-                        }
-                    },
-                    {
-                        "type": "text",
-                        "text": query
-                    }
-                ]
-            })
+            self.conversation_history.append(
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": media_type,
+                                "data": image_data,
+                            },
+                        },
+                        {"type": "text", "text": query},
+                    ],
+                }
+            )
 
             # Build system context
             system_messages = self._build_system_context(project_data)
@@ -717,17 +793,16 @@ In the meantime, you can still use basic commands like 'status', 'help', or 'cle
                 model=self.config.anthropic_model,
                 max_tokens=self.config.anthropic_max_tokens,
                 system=system_messages,
-                messages=self.conversation_history
+                messages=self.conversation_history,
             )
 
             self._track_token_usage(response.usage)
             response_text = self._extract_text_from_response(response)
 
             # Add response to history
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": response_text
-            })
+            self.conversation_history.append(
+                {"role": "assistant", "content": response_text}
+            )
 
             logger.info(f"Processed query with image: {image_path}")
             return response_text
@@ -737,9 +812,7 @@ In the meantime, you can still use basic commands like 'status', 'help', or 'cle
             return f"I encountered an error processing the image: {str(e)}"
 
     async def batch_process_queries(
-        self,
-        queries: List[str],
-        project_data: Dict[str, Any] = None
+        self, queries: List[str], project_data: Dict[str, Any] = None
     ) -> List[str]:
         """Process multiple queries in batch for efficiency"""
         results = []
@@ -748,7 +821,9 @@ In the meantime, you can still use basic commands like 'status', 'help', or 'cle
         # but we can process efficiently with async
         tasks = []
         for query in queries:
-            task = self.process_query(query, project_data=project_data, use_streaming=False)
+            task = self.process_query(
+                query, project_data=project_data, use_streaming=False
+            )
             tasks.append(task)
 
         # Process all queries concurrently
@@ -772,7 +847,7 @@ In the meantime, you can still use basic commands like 'status', 'help', or 'cle
         data = {
             "conversation_history": self.conversation_history,
             "token_usage": self.get_token_usage_stats(),
-            "terraform_context": self.terraform_context_cache
+            "terraform_context": self.terraform_context_cache,
         }
 
         Path(file_path).write_text(json.dumps(data, indent=2))

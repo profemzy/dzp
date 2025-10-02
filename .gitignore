@@ -45,6 +45,9 @@ ENV/
 env/
 .virtualenv
 
+# UV
+.uv_cache/
+
 # Databases & Vector Stores
 chroma_db/
 *.db

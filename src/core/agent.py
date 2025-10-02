@@ -2,22 +2,20 @@
 Core Terraform AI Agent business logic
 """
 
-import asyncio
 from datetime import datetime
-from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
-from src.core.config import Config
-from src.core.task_engine import TaskEngine, Task, TaskStatus
-from src.core.logger import get_logger
 from src.ai.claude_processor import ClaudeProcessor
+from src.core.config import Config
+from src.core.logger import get_logger
+from src.core.task_engine import Task, TaskEngine, TaskStatus
 
 logger = get_logger(__name__)
 
 
 class TerraformAgent:
     """Core Terraform AI Agent following single responsibility principle"""
-    
+
     def __init__(self, config: Config):
         self.config = config
         self.task_engine = TaskEngine(config)
@@ -33,75 +31,83 @@ class TerraformAgent:
 
         # Setup task engine callbacks
         self.task_engine.add_task_callback(self._on_task_update)
-    
+
     def _setup_claude_tools(self):
         """Setup tool handlers for Claude processor"""
         # Register all tool handlers
         self.ai_processor.register_tool_handler(
-            "execute_terraform_plan",
-            self._handle_terraform_plan_tool
+            "execute_terraform_plan", self._handle_terraform_plan_tool
         )
         self.ai_processor.register_tool_handler(
-            "execute_terraform_apply",
-            self._handle_terraform_apply_tool
+            "execute_terraform_apply", self._handle_terraform_apply_tool
         )
         self.ai_processor.register_tool_handler(
-            "execute_terraform_validate",
-            self._handle_terraform_validate_tool
+            "execute_terraform_validate", self._handle_terraform_validate_tool
         )
         self.ai_processor.register_tool_handler(
-            "execute_terraform_init",
-            self._handle_terraform_init_tool
+            "execute_terraform_init", self._handle_terraform_init_tool
         )
         self.ai_processor.register_tool_handler(
-            "execute_terraform_destroy",
-            self._handle_terraform_destroy_tool
+            "execute_terraform_destroy", self._handle_terraform_destroy_tool
         )
         self.ai_processor.register_tool_handler(
-            "get_resources",
-            self._handle_get_resources_tool
+            "get_resources", self._handle_get_resources_tool
         )
         self.ai_processor.register_tool_handler(
-            "analyze_infrastructure",
-            self._handle_analyze_infrastructure_tool
+            "analyze_infrastructure", self._handle_analyze_infrastructure_tool
         )
         self.ai_processor.register_tool_handler(
-            "get_terraform_state",
-            self._handle_get_state_tool
+            "get_terraform_state", self._handle_get_state_tool
         )
 
         logger.info("Claude tool handlers registered successfully")
 
     # Tool handlers for Claude
-    async def _handle_terraform_plan_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_terraform_plan_tool(
+        self, tool_input: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Handle terraform plan tool execution"""
         detailed = tool_input.get("detailed", True)
         result = await self.task_engine.execute_terraform_plan(detailed=detailed)
         return result
 
-    async def _handle_terraform_apply_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_terraform_apply_tool(
+        self, tool_input: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Handle terraform apply tool execution"""
         auto_approve = tool_input.get("auto_approve", False)
-        result = await self.task_engine.execute_terraform_apply(auto_approve=auto_approve)
+        result = await self.task_engine.execute_terraform_apply(
+            auto_approve=auto_approve
+        )
         return result
 
-    async def _handle_terraform_validate_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_terraform_validate_tool(
+        self, tool_input: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Handle terraform validate tool execution"""
         result = await self.task_engine.execute_terraform_validate()
         return result
 
-    async def _handle_terraform_init_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_terraform_init_tool(
+        self, tool_input: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Handle terraform init tool execution"""
         result = await self.task_engine.execute_terraform_init()
         return result
 
-    async def _handle_terraform_destroy_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_terraform_destroy_tool(
+        self, tool_input: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Handle terraform destroy tool execution"""
         auto_approve = tool_input.get("auto_approve", False)
-        result = await self.task_engine.execute_terraform_destroy(auto_approve=auto_approve)
+        result = await self.task_engine.execute_terraform_destroy(
+            auto_approve=auto_approve
+        )
         return result
 
-    async def _handle_get_resources_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_get_resources_tool(
+        self, tool_input: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Handle get resources tool execution"""
         resource_type = tool_input.get("resource_type")
         search_query = tool_input.get("search_query")
@@ -115,20 +121,25 @@ class TerraformAgent:
             filtered = []
 
             for resource in details:
-                if resource_type and resource_type.lower() not in resource.get("type", "").lower():
+                if (
+                    resource_type
+                    and resource_type.lower() not in resource.get("type", "").lower()
+                ):
                     continue
-                if search_query and search_query.lower() not in resource.get("name", "").lower():
+                if (
+                    search_query
+                    and search_query.lower() not in resource.get("name", "").lower()
+                ):
                     continue
                 filtered.append(resource)
 
-            return {
-                "count": len(filtered),
-                "resources": filtered
-            }
+            return {"count": len(filtered), "resources": filtered}
 
         return resources
 
-    async def _handle_analyze_infrastructure_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_analyze_infrastructure_tool(
+        self, tool_input: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Handle infrastructure analysis tool execution"""
         analysis_type = tool_input.get("analysis_type", "summary")
 
@@ -139,7 +150,7 @@ class TerraformAgent:
                 "resources": project_data.get("resources", {}).get("count", 0),
                 "variables": project_data.get("variables", {}).get("count", 0),
                 "outputs": project_data.get("outputs", {}).get("count", 0),
-                "providers": project_data.get("providers", {}).get("count", 0)
+                "providers": project_data.get("providers", {}).get("count", 0),
             }
         elif analysis_type == "resources":
             return project_data.get("resources", {})
@@ -152,7 +163,9 @@ class TerraformAgent:
         else:
             return {"error": f"Unknown analysis type: {analysis_type}"}
 
-    async def _handle_get_state_tool(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_get_state_tool(
+        self, tool_input: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Handle get terraform state tool execution"""
         list_resources = tool_input.get("list_resources", True)
 
@@ -161,7 +174,7 @@ class TerraformAgent:
             return result
         else:
             return {"message": "State information requested but list_resources=False"}
-    
+
     def _on_task_update(self, task: Task):
         """Handle task updates"""
         if task.status == TaskStatus.COMPLETED:
@@ -170,7 +183,7 @@ class TerraformAgent:
             logger.error(f"Task failed: {task.error}")
         elif task.status == TaskStatus.RUNNING:
             logger.info(f"Running: {task.intent.original_query}")
-    
+
     def get_project_data(self) -> Dict[str, Any]:
         """Get project data from task engine"""
         return self.task_engine.get_project_data()
@@ -178,48 +191,57 @@ class TerraformAgent:
     def _detect_and_handle_simple_query(self, command: str) -> Optional[str]:
         """Detect simple resource queries and handle from cache without LLM"""
         import re
+
         command_lower = command.lower().strip()
 
         # Patterns for simple queries
         patterns = {
-            r'how many resources|total resources|resource count': 'resource_count',
-            r'list resources|show resources|all resources': 'resource_list',
-            r'list (\w+)|show (\w+)|resources (\w+)': 'resource_type_list',  # Capture group for type
+            r"how many resources|total resources|resource count": "resource_count",
+            r"list resources|show resources|all resources": "resource_list",
+            r"list (\w+)|show (\w+)|resources (\w+)": "resource_type_list",  # Capture group for type
         }
 
         project_data = self.get_project_data()
-        resources = project_data.get('resources', {})
+        resources = project_data.get("resources", {})
 
         for pattern, handler in patterns.items():
             match = re.search(pattern, command_lower)
             if match:
-                if handler == 'resource_count':
-                    count = resources.get('count', 0)
+                if handler == "resource_count":
+                    count = resources.get("count", 0)
                     return f"📊 **Resource Count:** You have **{count}** Terraform resources defined in your configuration."
-                
-                elif handler == 'resource_list':
-                    count = resources.get('count', 0)
-                    by_type = resources.get('by_type', {})
+
+                elif handler == "resource_list":
+                    count = resources.get("count", 0)
+                    by_type = resources.get("by_type", {})
                     if count == 0:
                         return "📭 No Terraform resources found in your configuration."
-                    
-                    response = f"📋 **Resource Overview:** You have **{count}** resources.\n\n"
-                    sorted_types = sorted(by_type.items(), key=lambda x: x[1], reverse=True)
+
+                    response = (
+                        f"📋 **Resource Overview:** You have **{count}** resources.\n\n"
+                    )
+                    sorted_types = sorted(
+                        by_type.items(), key=lambda x: x[1], reverse=True
+                    )
                     for res_type, cnt in sorted_types[:5]:  # Top 5
                         response += f"• **{res_type}**: {cnt}\n"
                     if len(sorted_types) > 5:
-                        response += f"... and more types.\n"
+                        response += "... and more types.\n"
                     return response
-                
-                elif handler == 'resource_type_list':
+
+                elif handler == "resource_type_list":
                     res_type = match.group(1) or match.group(2) or match.group(3)
-                    res_type = res_type.replace('s', '')  # Plural handling
-                    details = resources.get('details', [])
-                    matching = [d for d in details if res_type.lower() in d.get('type', '').lower()]
-                    
+                    res_type = res_type.replace("s", "")  # Plural handling
+                    details = resources.get("details", [])
+                    matching = [
+                        d
+                        for d in details
+                        if res_type.lower() in d.get("type", "").lower()
+                    ]
+
                     if not matching:
                         return f"📭 No resources of type '{res_type}' found."
-                    
+
                     response = f"📋 **{res_type.title()} Resources:** Found {len(matching)} matching resources.\n\n"
                     for detail in matching[:10]:  # Limit to 10
                         response += f"• **{detail['name']}** ({detail['type']})\n"
@@ -228,345 +250,374 @@ class TerraformAgent:
                     return response
 
         return None
-    
+
     def _detect_terraform_command(self, command: str) -> Optional[str]:
         """Detect if command is a terraform operation"""
         command_lower = command.lower()
-        
+
         # Terraform command patterns
         terraform_commands = {
-            'terraform init': 'init',
-            'terraform plan': 'plan',
-            'terraform apply': 'apply',
-            'terraform destroy': 'destroy',
-            'terraform validate': 'validate',
-            'terraform show': 'show',
-            'terraform output': 'output',
-            'terraform state list': 'state_list',
-            'run terraform plan': 'plan',
-            'run terraform apply': 'apply',
-            'run terraform destroy': 'destroy',
-            'run terraform init': 'init',
-            'validate configuration': 'validate',
-            'validate terraform': 'validate',
-            'show terraform plan': 'show',
-            'show terraform state': 'state_list',
-            'list terraform state': 'state_list',
-            'terraform state': 'state_list'
+            "terraform init": "init",
+            "terraform plan": "plan",
+            "terraform apply": "apply",
+            "terraform destroy": "destroy",
+            "terraform validate": "validate",
+            "terraform show": "show",
+            "terraform output": "output",
+            "terraform state list": "state_list",
+            "run terraform plan": "plan",
+            "run terraform apply": "apply",
+            "run terraform destroy": "destroy",
+            "run terraform init": "init",
+            "validate configuration": "validate",
+            "validate terraform": "validate",
+            "show terraform plan": "show",
+            "show terraform state": "state_list",
+            "list terraform state": "state_list",
+            "terraform state": "state_list",
         }
-        
+
         for pattern, action in terraform_commands.items():
             if pattern in command_lower:
                 return action
-        
+
         return None
-    
+
     async def _execute_terraform_command(self, command: str, action: str) -> str:
         """Execute a terraform command and return formatted response"""
         try:
             # Execute the appropriate terraform command
-            if action == 'init':
+            if action == "init":
                 result = await self.task_engine.execute_terraform_init()
-            elif action == 'plan':
+            elif action == "plan":
                 result = await self.task_engine.execute_terraform_plan()
-            elif action == 'apply':
+            elif action == "apply":
                 result = await self.task_engine.execute_terraform_apply()
-            elif action == 'destroy':
+            elif action == "destroy":
                 result = await self.task_engine.execute_terraform_destroy()
-            elif action == 'validate':
+            elif action == "validate":
                 result = await self.task_engine.execute_terraform_validate()
-            elif action == 'show':
+            elif action == "show":
                 result = await self.task_engine.execute_terraform_show()
-            elif action == 'output':
+            elif action == "output":
                 result = await self.task_engine.execute_terraform_output()
-            elif action == 'state_list':
+            elif action == "state_list":
                 result = await self.task_engine.execute_terraform_state_list()
             else:
                 return f"Unknown terraform command: {action}"
-            
+
             # Format the response
             return self._format_terraform_result(result, action)
-            
+
         except Exception as e:
             logger.error(f"Error executing terraform command: {e}")
             return f"Error executing terraform command: {str(e)}"
-    
+
     def _format_terraform_result(self, result: Dict[str, Any], action: str) -> str:
         """Format terraform execution result for user display"""
-        if result['success']:
-            response = f"✅ **Terraform {action.replace('_', ' ').title()} Successful**\n\n"
-            
-            if action == 'plan':
+        if result["success"]:
+            response = (
+                f"✅ **Terraform {action.replace('_', ' ').title()} Successful**\n\n"
+            )
+
+            if action == "plan":
                 response += self._format_plan_result(result)
-            elif action == 'apply':
+            elif action == "apply":
                 response += self._format_apply_result(result)
-            elif action == 'destroy':
+            elif action == "destroy":
                 response += self._format_destroy_result(result)
-            elif action == 'init':
+            elif action == "init":
                 response += self._format_init_result(result)
-            elif action == 'validate':
+            elif action == "validate":
                 response += self._format_validate_result(result)
-            elif action == 'show':
+            elif action == "show":
                 response += self._format_show_result(result)
-            elif action == 'output':
+            elif action == "output":
                 response += self._format_output_result(result)
-            elif action == 'state_list':
+            elif action == "state_list":
                 response += self._format_state_list_result(result)
             else:
                 response += self._format_generic_result(result)
-            
-            if result.get('duration'):
+
+            if result.get("duration"):
                 response += f"\n\n**⏱️ Duration:** {result['duration']:.2f} seconds"
-            
+
         else:
             response = f"❌ **Terraform {action.replace('_', ' ').title()} Failed**\n\n"
-            
-            if result.get('error'):
-                error_msg = result['error']
+
+            if result.get("error"):
+                error_msg = result["error"]
                 # Extract meaningful error message
                 if isinstance(error_msg, str):
-                    lines = error_msg.split('\n')
+                    lines = error_msg.split("\n")
                     for line in lines:
-                        if 'Error:' in line or 'error:' in line or line.strip():
+                        if "Error:" in line or "error:" in line or line.strip():
                             response += f"**Error:** {line.strip()}\n"
                             break
                 else:
                     response += f"**Error:** {str(error_msg)}\n"
-            
+
             # Show only relevant error output, not the full dump
-            if result.get('output') and isinstance(result['output'], str):
-                output = result['output']
+            if result.get("output") and isinstance(result["output"], str):
+                output = result["output"]
                 # Extract key error information
                 error_lines = []
-                for line in output.split('\n'):
-                    if any(keyword in line.lower() for keyword in ['error:', 'failed', 'invalid', 'missing']):
+                for line in output.split("\n"):
+                    if any(
+                        keyword in line.lower()
+                        for keyword in ["error:", "failed", "invalid", "missing"]
+                    ):
                         if len(error_lines) < 3:  # Limit error lines
                             error_lines.append(line.strip())
-                
+
                 if error_lines:
-                    response += f"\n**Details:**\n"
+                    response += "\n**Details:**\n"
                     for line in error_lines:
                         response += f"• {line}\n"
-        
+
         return response
-    
+
     def _format_plan_result(self, result: Dict[str, Any]) -> str:
         """Format terraform plan result with intelligent summary"""
         response = ""
-        
-        if result.get('summary'):
-            summary = result['summary']
-            response += f"**📋 Plan Summary:**\n"
+
+        if result.get("summary"):
+            summary = result["summary"]
+            response += "**📋 Plan Summary:**\n"
             response += f"• ➕ Resources to add: {summary.get('add', 0)}\n"
             response += f"• 🔄 Resources to change: {summary.get('change', 0)}\n"
             response += f"• 🗑️  Resources to destroy: {summary.get('destroy', 0)}\n\n"
-        
+
         # Analyze the plan output for meaningful insights
-        output = result.get('output', '')
+        output = result.get("output", "")
         if isinstance(output, str):
             # Provide intelligent interpretation
-            if summary := result.get('summary', {}):
-                if summary.get('add', 0) == 0 and summary.get('change', 0) == 0 and summary.get('destroy', 0) == 0:
+            if summary := result.get("summary", {}):
+                if (
+                    summary.get("add", 0) == 0
+                    and summary.get("change", 0) == 0
+                    and summary.get("destroy", 0) == 0
+                ):
                     response += "🎉 **Good news!** Your infrastructure is already up-to-date. No changes are needed.\n\n"
                 else:
-                    total_changes = summary.get('add', 0) + summary.get('change', 0) + summary.get('destroy', 0)
+                    total_changes = (
+                        summary.get("add", 0)
+                        + summary.get("change", 0)
+                        + summary.get("destroy", 0)
+                    )
                     response += f"📊 **Analysis:** {total_changes} change{'s' if total_changes != 1 else ''} detected.\n\n"
-                    
-                    if summary.get('add', 0) > 0:
+
+                    if summary.get("add", 0) > 0:
                         response += f"🆕 **New Resources:** {summary.get('add', 0)} resources will be created.\n"
-                    if summary.get('change', 0) > 0:
+                    if summary.get("change", 0) > 0:
                         response += f"🔄 **Updates:** {summary.get('change', 0)} resources will be modified.\n"
-                    if summary.get('destroy', 0) > 0:
+                    if summary.get("destroy", 0) > 0:
                         response += f"🗑️  **Removals:** {summary.get('destroy', 0)} resources will be destroyed.\n"
-                    
+
                     response += "\n💡 **Next Steps:** Review the changes and run 'terraform apply' when ready.\n\n"
-            
+
             # Extract key information without showing raw output
-            if 'Refreshing state' in output:
+            if "Refreshing state" in output:
                 response += "🔄 **State Status:** Infrastructure state refreshed successfully.\n"
-            
-            if 'No changes' in output:
+
+            if "No changes" in output:
                 response += "✅ **Status:** Infrastructure matches configuration.\n"
-        
+
         return response
-    
+
     def _format_apply_result(self, result: Dict[str, Any]) -> str:
         """Format terraform apply result"""
         response = "**🚀 Apply Summary:**\n"
-        
-        output = result.get('output', '')
+
+        output = result.get("output", "")
         if isinstance(output, str):
             # Extract key apply information
-            if 'Apply complete!' in output:
+            if "Apply complete!" in output:
                 response += "✅ **Status:** Infrastructure successfully updated.\n"
-            
+
             # Count applied resources
-            lines = output.split('\n')
+            lines = output.split("\n")
             applied_count = 0
             for line in lines:
-                if ':' in line and ('created' in line or 'modified' in line):
+                if ":" in line and ("created" in line or "modified" in line):
                     applied_count += 1
-            
+
             if applied_count > 0:
-                response += f"📦 **Resources Applied:** {applied_count} resources updated.\n"
+                response += (
+                    f"📦 **Resources Applied:** {applied_count} resources updated.\n"
+                )
             else:
                 response += "📦 **Resources Applied:** No changes were needed.\n"
-        
+
         response += "\n🎯 **Result:** Your infrastructure is now synchronized with the configuration.\n"
         return response + "\n"
-    
+
     def _format_destroy_result(self, result: Dict[str, Any]) -> str:
         """Format terraform destroy result"""
         response = "**💥 Destroy Summary:**\n"
-        
-        output = result.get('output', '')
+
+        output = result.get("output", "")
         if isinstance(output, str):
-            if 'Destroy complete!' in output:
+            if "Destroy complete!" in output:
                 response += "✅ **Status:** Infrastructure successfully destroyed.\n"
                 response += "⚠️  **Warning:** All managed resources have been removed.\n"
             else:
                 response += "🔄 **Status:** Infrastructure destruction process.\n"
-        
+
         response += "\n🔒 **Security Note:** Double-check that all resources have been properly cleaned up.\n"
         return response + "\n"
-    
+
     def _format_init_result(self, result: Dict[str, Any]) -> str:
         """Format terraform init result"""
         response = "**🔧 Initialization Summary:**\n"
-        
-        output = result.get('output', '')
+
+        output = result.get("output", "")
         if isinstance(output, str):
-            if 'Terraform has been successfully initialized!' in output:
-                response += "✅ **Status:** Terraform workspace initialized successfully.\n"
-            
+            if "Terraform has been successfully initialized!" in output:
+                response += (
+                    "✅ **Status:** Terraform workspace initialized successfully.\n"
+                )
+
             # Check for provider installations
-            if 'Installing' in output and 'provider' in output:
+            if "Installing" in output and "provider" in output:
                 response += "📦 **Providers:** Required providers installed.\n"
-            
-            if 'Backend' in output and 'configured' in output:
+
+            if "Backend" in output and "configured" in output:
                 response += "💾 **Backend:** Remote storage configured.\n"
-        
-        response += "\n🚀 **Ready:** You can now run terraform plan and apply commands.\n"
+
+        response += (
+            "\n🚀 **Ready:** You can now run terraform plan and apply commands.\n"
+        )
         return response + "\n"
-    
+
     def _format_validate_result(self, result: Dict[str, Any]) -> str:
         """Format terraform validate result"""
         response = "**✅ Validation Summary:**\n"
         response += "🔍 **Status:** Configuration syntax is valid.\n"
         response += "📋 **Result:** No configuration errors found.\n\n"
-        response += "💡 **Good to go:** Your terraform files are ready for deployment.\n"
+        response += (
+            "💡 **Good to go:** Your terraform files are ready for deployment.\n"
+        )
         return response + "\n"
-    
+
     def _format_show_result(self, result: Dict[str, Any]) -> str:
         """Format terraform show result"""
         response = "**📊 Current State Summary:**\n"
-        
-        output = result.get('output', '')
+
+        output = result.get("output", "")
         if isinstance(output, str):
             # Count resources in state
             resource_count = output.count('resource "')
             if resource_count > 0:
-                response += f"📦 **Resources in State:** {resource_count} resources managed.\n"
+                response += (
+                    f"📦 **Resources in State:** {resource_count} resources managed.\n"
+                )
             else:
-                response += "📦 **Resources in State:** No resources currently managed.\n"
-        
+                response += (
+                    "📦 **Resources in State:** No resources currently managed.\n"
+                )
+
         response += "\n🔍 **Info:** This shows the current infrastructure state.\n"
         return response + "\n"
-    
+
     def _format_output_result(self, result: Dict[str, Any]) -> str:
         """Format terraform output result"""
         response = "**📤 Output Values:**\n"
-        
-        output = result.get('output', '')
+
+        output = result.get("output", "")
         if isinstance(output, str):
             # Parse output values
-            lines = output.split('\n')
+            lines = output.split("\n")
             for line in lines:
-                if '=' in line and not line.strip().startswith('#'):
-                    key, value = line.split('=', 1)
+                if "=" in line and not line.strip().startswith("#"):
+                    key, value = line.split("=", 1)
                     response += f"• **{key.strip()}:** {value.strip()}\n"
-        
-        if not output or '=' not in output:
+
+        if not output or "=" not in output:
             response += "📭 **No output values** are currently defined.\n"
-        
+
         return response + "\n"
-    
+
     def _format_state_list_result(self, result: Dict[str, Any]) -> str:
         """Format terraform state list result"""
         response = "**📋 State Resources:**\n"
-        
-        output = result.get('output', '')
+
+        output = result.get("output", "")
         if isinstance(output, str):
             # Count resources by type
-            lines = output.split('\n')
+            lines = output.split("\n")
             resource_count = len([line for line in lines if line.strip()])
-            
+
             if resource_count > 0:
-                response += f"📦 **Total Resources:** {resource_count} resources in state.\n"
-                
+                response += (
+                    f"📦 **Total Resources:** {resource_count} resources in state.\n"
+                )
+
                 # Show first few as examples
                 examples = [line.strip() for line in lines[:5] if line.strip()]
                 if examples:
                     response += "\n**Sample Resources:**\n"
                     for example in examples:
                         response += f"• {example}\n"
-                
+
                 if resource_count > 5:
                     response += f"\n... and {resource_count - 5} more resources.\n"
             else:
                 response += "📭 **No resources** found in state.\n"
-        
+
         return response + "\n"
-    
+
     def _format_generic_result(self, result: Dict[str, Any]) -> str:
         """Format generic terraform result"""
         response = "**📋 Operation Summary:**\n"
         response += "✅ **Status:** Command completed successfully.\n"
-        
-        if result.get('duration'):
+
+        if result.get("duration"):
             response += f"⏱️ **Duration:** {result['duration']:.2f} seconds\n"
-        
+
         return response + "\n"
-    
+
     async def process_command_async(self, command: str) -> str:
         """Process a command asynchronously and return the response"""
         if not command.strip():
             return ""
-        
+
         command_lower = command.lower()
-        
+
         # Handle system commands
-        if command_lower in ['exit', 'quit', 'q']:
+        if command_lower in ["exit", "quit", "q"]:
             self.running = False
             return "exit"
-        
-        if command_lower in ['help', 'h']:
+
+        if command_lower in ["help", "h"]:
             return "help"
-        
-        if command_lower in ['clear', 'cls']:
+
+        if command_lower in ["clear", "cls"]:
             return "clear"
-        
-        if command_lower == 'status':
+
+        if command_lower == "status":
             return "status"
 
-        if command_lower == 'tokens' or command_lower == 'usage':
+        if command_lower == "tokens" or command_lower == "usage":
             return "tokens"
 
-        if command_lower.startswith('export'):
+        if command_lower.startswith("export"):
             return command
 
-        if command_lower.startswith('import'):
+        if command_lower.startswith("import"):
             return command
-        
+
         # Add to conversation history
         self.conversation_history.append({"role": "user", "content": command})
-        
+
         try:
             # Check if this is a terraform command
             terraform_action = self._detect_terraform_command(command)
             if terraform_action:
                 # Execute terraform command asynchronously
-                response = await self._execute_terraform_command(command, terraform_action)
+                response = await self._execute_terraform_command(
+                    command, terraform_action
+                )
             else:
                 # Check for simple query
                 simple_response = self._detect_and_handle_simple_query(command)
@@ -575,36 +626,38 @@ class TerraformAgent:
                 else:
                     # Use AI processor (Claude or LangChain) for processing
                     project_data = self.get_project_data()
-                    response = await self.ai_processor.process_query(command, project_data=project_data)
-            
+                    response = await self.ai_processor.process_query(
+                        command, project_data=project_data
+                    )
+
             # Add to conversation history
             self.conversation_history.append({"role": "assistant", "content": response})
-            
+
             return response
-            
+
         except Exception as e:
             error_msg = f"Error processing command: {str(e)}"
             logger.error(error_msg)
             return error_msg
-    
+
     # Removed sync process_command method as app uses async version
-    
+
     def is_running(self) -> bool:
         """Check if agent is still running"""
         return self.running
-    
+
     def stop(self):
         """Stop the agent"""
         self.running = False
-    
+
     def get_session_duration(self) -> datetime:
         """Get session duration"""
         return datetime.now() - self.session_start
-    
+
     def get_conversation_history(self) -> List[Dict[str, str]]:
         """Get conversation history"""
         return self.conversation_history.copy()
-    
+
     def clear_conversation_history(self):
         """Clear conversation history"""
         self.conversation_history.clear()

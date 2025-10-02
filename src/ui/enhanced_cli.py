@@ -4,8 +4,14 @@ Enhanced CLI UI components for Terraform AI Agent
 
 import time
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
+from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.keys import Keys
+from prompt_toolkit.styles import Style
 from rich import box
 from rich.console import Console
 from rich.markdown import Markdown
@@ -14,13 +20,6 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich.text import Text
 
-from prompt_toolkit import PromptSession
-from prompt_toolkit.history import InMemoryHistory
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.keys import Keys
-from prompt_toolkit.styles import Style
-from prompt_toolkit.completion import WordCompleter
-
 from src.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -28,32 +27,46 @@ logger = get_logger(__name__)
 
 class EnhancedCLI:
     """Enhanced CLI UI components following single responsibility principle"""
-    
+
     def __init__(self):
         self.console = Console()
         self.colors = {
-            'primary': '#00D4AA',
-            'secondary': '#FF6B6B',
-            'accent': '#4ECDC4',
-            'warning': '#FFD93D',
-            'info': '#6C63FF',
-            'success': '#95E77E',
-            'text': '#E8E8E8',
-            'muted': '#A0A0A0'
+            "primary": "#00D4AA",
+            "secondary": "#FF6B6B",
+            "accent": "#4ECDC4",
+            "warning": "#FFD93D",
+            "info": "#6C63FF",
+            "success": "#95E77E",
+            "text": "#E8E8E8",
+            "muted": "#A0A0A0",
         }
         self.history = InMemoryHistory()
         self.session = None
         self._setup_prompt_session()
-    
+
     def _setup_prompt_session(self):
         """Setup prompt_toolkit session with history and key bindings"""
         # Define command completion suggestions
-        self.command_completer = WordCompleter([
-            'help', 'clear', 'status', 'tokens', 'usage', 'exit', 'quit',
-            'show all resources', 'run terraform plan', 'validate configuration',
-            'how many resources', 'what virtual machines', 'analyze security',
-            'export', 'import'
-        ], ignore_case=True)
+        self.command_completer = WordCompleter(
+            [
+                "help",
+                "clear",
+                "status",
+                "tokens",
+                "usage",
+                "exit",
+                "quit",
+                "show all resources",
+                "run terraform plan",
+                "validate configuration",
+                "how many resources",
+                "what virtual machines",
+                "analyze security",
+                "export",
+                "import",
+            ],
+            ignore_case=True,
+        )
 
         # Key bindings
         kb = KeyBindings()
@@ -63,18 +76,20 @@ class EnhancedCLI:
             event.app.exit()
 
         # Style for prompt
-        style = Style.from_dict({
-            'prompt': '#00D4AA bold',
-        })
+        style = Style.from_dict(
+            {
+                "prompt": "#00D4AA bold",
+            }
+        )
 
         self.session = PromptSession(
             history=self.history,
             completer=self.command_completer,
             key_bindings=kb,
             style=style,
-            wrap_lines=True
+            wrap_lines=True,
         )
-    
+
     def show_welcome(self):
         """Show enhanced welcome screen"""
         welcome_text = """
@@ -102,113 +117,119 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
             title="🚀 Welcome",
             title_align="center",
             border_style="#00D4AA",
-            padding=(1, 2)
+            padding=(1, 2),
         )
 
         self.console.print(panel)
         self.console.print()
-    
+
     def show_project_overview(self, project_data: Dict[str, Any]):
         """Show enhanced project information"""
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             console=self.console,
-            transient=True
+            transient=True,
         ) as progress:
             task = progress.add_task("📊 Analyzing infrastructure...", total=None)
-            
+
             try:
                 progress.update(task, description="✅ Analysis complete")
                 time.sleep(0.5)
-                
+
                 # Create beautiful project overview
                 resources = project_data.get("resources", {})
                 variables = project_data.get("variables", {})
                 outputs = project_data.get("outputs", {})
                 providers = project_data.get("providers", {})
-                
+
                 # Create metrics table
                 table = Table(show_header=False, box=box.ROUNDED, expand=True)
                 table.add_column("Metric", style="#00D4AA", width=20)
                 table.add_column("Value", style="#FFFFFF", width=15)
                 table.add_column("Description", style="#A0A0A0", width=40)
-                
+
                 table.add_row(
                     "📦 Resources",
                     f"[bold]{resources.get('count', 0)}[/bold]",
-                    "Infrastructure resources defined"
+                    "Infrastructure resources defined",
                 )
                 table.add_row(
-                    "⚙️  Variables", 
+                    "⚙️  Variables",
                     f"[bold]{variables.get('count', 0)}[/bold]",
-                    "Configuration variables"
+                    "Configuration variables",
                 )
                 table.add_row(
                     "📤 Outputs",
-                    f"[bold]{outputs.get('count', 0)}[/bold]", 
-                    "Output values"
+                    f"[bold]{outputs.get('count', 0)}[/bold]",
+                    "Output values",
                 )
                 table.add_row(
                     "🔌 Providers",
                     f"[bold]{providers.get('count', 0)}[/bold]",
-                    "Cloud providers"
+                    "Cloud providers",
                 )
-                
+
                 panel = Panel(
                     table,
                     title="📋 Project Overview",
                     title_align="left",
                     border_style="#00D4AA",
-                    padding=(1, 2)
+                    padding=(1, 2),
                 )
-                
+
                 self.console.print(panel)
-                
+
                 # Show resource breakdown if available
                 if resources.get("by_type"):
                     self.show_resource_breakdown(resources["by_type"])
-                
+
             except Exception as e:
-                self.console.print(f"[#FF6B6B]❌ Failed to load project info: {e}[/#FF6B6B]")
-    
+                self.console.print(
+                    f"[#FF6B6B]❌ Failed to load project info: {e}[/#FF6B6B]"
+                )
+
     def show_resource_breakdown(self, by_type: Dict[str, int]):
         """Show resource breakdown table"""
         table = Table(title="🏗️  Resources by Type", box=box.ROUNDED, show_header=True)
         table.add_column("Resource Type", style="#00D4AA", width=30)
         table.add_column("Count", justify="right", style="#FFFFFF", width=10)
         table.add_column("Progress", width=20)
-        
+
         total_resources = sum(by_type.values())
-        
-        for resource_type, count in sorted(by_type.items(), key=lambda x: x[1], reverse=True):
+
+        for resource_type, count in sorted(
+            by_type.items(), key=lambda x: x[1], reverse=True
+        ):
             # Clean up resource type names
             clean_name = resource_type.replace("azurerm_", "").replace("_", " ").title()
-            
+
             # Create progress bar
             percentage = (count / total_resources) * 100 if total_resources > 0 else 0
-            progress_bar = "█" * int(percentage / 10) + "░" * (10 - int(percentage / 10))
+            progress_bar = "█" * int(percentage / 10) + "░" * (
+                10 - int(percentage / 10)
+            )
             progress_color = "#00D4AA" if percentage > 20 else "#FFD93D"
-            
+
             table.add_row(
                 clean_name,
                 f"[bold]{count}[/bold]",
-                f"[{progress_color}]{progress_bar}[/{progress_color}] {percentage:.1f}%"
+                f"[{progress_color}]{progress_bar}[/{progress_color}] {percentage:.1f}%",
             )
-        
+
         self.console.print(table)
         self.console.print()
-    
+
     def show_command_processing(self, command: str):
         """Show command being processed"""
         panel = Panel(
             f"[dim]Processing command...[/dim]\n\n[bold #00D4AA]{command}[/bold #00D4AA]",
             title="🔍 Command",
             border_style="#4ECDC4",
-            padding=(1, 2)
+            padding=(1, 2),
         )
         self.console.print(panel)
-    
+
     def show_ai_response(self, response: str):
         """Display AI response in a beautiful panel"""
         # Use Markdown for AI responses as they may contain markdown formatting
@@ -216,22 +237,22 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
             Markdown(response),
             title="🤖 AI Response",
             border_style="#00D4AA",
-            padding=(1, 2)
+            padding=(1, 2),
         )
         self.console.print(panel)
         self.console.print()
-    
+
     def show_error(self, error: str):
         """Display error message"""
         panel = Panel(
             f"[#FF6B6B]Error: {error}[/#FF6B6B]",
             title="❌ Error",
             border_style="#FF6B6B",
-            padding=(1, 2)
+            padding=(1, 2),
         )
         self.console.print(panel)
         self.console.print()
-    
+
     def show_help(self):
         """Show enhanced help"""
         help_text = """
@@ -271,13 +292,15 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
             title="📖 Help",
             title_align="center",
             border_style="#00D4AA",
-            padding=(1, 2)
+            padding=(1, 2),
         )
 
         self.console.print(panel)
         self.console.print()
-    
-    def show_status(self, session_duration: datetime, conversation_history: List[Dict[str, str]]):
+
+    def show_status(
+        self, session_duration: datetime, conversation_history: List[Dict[str, str]]
+    ):
         """Show session status"""
         status_text = f"""
 [bold #00D4AA]📊 Session Status[/bold #00D4AA]
@@ -295,13 +318,15 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
             Text.from_markup(status_text),
             title="📈 Status",
             border_style="#4ECDC4",
-            padding=(1, 2)
+            padding=(1, 2),
         )
-        
+
         self.console.print(panel)
         self.console.print()
-    
-    def show_goodbye(self, session_duration: datetime, conversation_history: List[Dict[str, str]]):
+
+    def show_goodbye(
+        self, session_duration: datetime, conversation_history: List[Dict[str, str]]
+    ):
         """Show enhanced goodbye message"""
         goodbye_text = f"""
 [bold #00D4AA]👋 Thank you for using DZP IAC Agent![/bold #00D4AA]
@@ -312,23 +337,25 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
 
 [dim]See you next time! 🚀[/dim]
         """
-        
+
         panel = Panel(
             Text.from_markup(goodbye_text),
             title="Goodbye",
             title_align="center",
             border_style="#00D4AA",
-            padding=(1, 2)
+            padding=(1, 2),
         )
-        
+
         self.console.print(panel)
-    
+
     def show_initial_help(self):
         """Show initial help panel"""
         help_panel = Panel(
-            Text.from_markup("[dim]Ask me anything about your Terraform infrastructure, or type[/dim] [#4ECDC4]help[/#4ECDC4] [dim]for examples[/dim]"),
+            Text.from_markup(
+                "[dim]Ask me anything about your Terraform infrastructure, or type[/dim] [#4ECDC4]help[/#4ECDC4] [dim]for examples[/dim]"
+            ),
             border_style="#4ECDC4",
-            padding=(1, 2)
+            padding=(1, 2),
         )
         self.console.print(help_panel)
 
@@ -336,32 +363,30 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
         """Get command input from user with history"""
         try:
             # Clean, professional prompt
-            command = await self.session.prompt_async(
-                [('class:prompt', '\n> ')]
-            )
+            command = await self.session.prompt_async([("class:prompt", "\n> ")])
 
             command = command.strip()
 
             # Add to history
-            if command and command not in ['exit', 'quit']:
+            if command and command not in ["exit", "quit"]:
                 self.history.append_string(command)
 
             return command
 
         except (KeyboardInterrupt, EOFError):
             return "exit"
-    
+
     def show_knowledge_base_progress(self, description: str):
         """Show knowledge base initialization progress"""
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             console=self.console,
-            transient=True
+            transient=True,
         ) as progress:
             task = progress.add_task(description, total=None)
             time.sleep(1)
-    
+
     def clear_screen(self):
         """Clear the console screen"""
         self.console.clear()
