@@ -1,6 +1,6 @@
-# 🤖 Autonomous Infrastructure as Code Agent
+# 🤖 DZP IAC Agent
 
-An intelligent agent powered by **Claude AI** with **native tool use** for Terraform infrastructure automation. Features advanced capabilities like extended thinking, streaming responses, token tracking, and vision support.
+An intelligent Infrastructure as Code agent powered by **Claude AI** with **native tool use** for Terraform automation. Features advanced capabilities like extended thinking, streaming responses, token tracking, and vision support.
 
 ## ✨ Features
 
@@ -48,7 +48,7 @@ An intelligent agent powered by **Claude AI** with **native tool use** for Terra
 1. **Clone the repository**
 ```bash
 git clone <repository-url>
-cd terraform-ai-agent
+cd dzp
 ```
 
 2. **Create virtual environment**
@@ -240,6 +240,7 @@ Save and restore sessions:
 
 ## 📚 Documentation
 
+- **[CHEATSHEET.md](docs/CHEATSHEET.md)** - 🎯 Quick reference with example prompts and queries
 - **[CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md)** - Setup, tools, and architecture
 - **[ADVANCED_FEATURES.md](docs/ADVANCED_FEATURES.md)** - Extended thinking, streaming, vision, etc.
 
@@ -265,7 +266,7 @@ Savings: 78%
 ## 🎯 Example Session
 
 ```
-🤖 Terraform AI Agent - Claude Native Tool Use
+🤖 DZP IAC Agent
 
 📋 Project Overview
 • Resources: 8
@@ -307,7 +308,7 @@ Cache savings: 87%
 ### Project Structure
 
 ```
-terraform-ai-agent/
+dzp/
 ├── main.py                      # Application entry point
 ├── requirements.txt             # Python dependencies
 ├── .env.example                 # Environment template
@@ -399,7 +400,7 @@ MIT License - see LICENSE file for details
 
 **Branch**: `feature/claude-native-tool-use`
 
-This is a complete, production-ready Terraform automation agent powered by Claude AI with:
+This is a complete, production-ready Infrastructure as Code automation agent powered by Claude AI with:
 - ✅ Native tool use integration
 - ✅ Advanced features (thinking, streaming, vision)
 - ✅ Cost-optimized with prompt caching
@@ -408,4 +409,4 @@ This is a complete, production-ready Terraform automation agent powered by Claud
 - ✅ Clean, maintainable codebase
 - ✅ Complete documentation
 
-Built with Claude AI for intelligent infrastructure automation.
+**DZP IAC Agent** - Built with Claude AI for intelligent infrastructure automation.

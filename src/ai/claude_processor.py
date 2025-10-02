@@ -138,7 +138,7 @@ class ClaudeProcessor:
             },
             {
                 "name": "get_resources",
-                "description": "Get information about Terraform resources in the configuration. Use this to answer questions about what resources exist, their types, counts, or details.",
+                "description": "Get information about Terraform resources DEFINED in the configuration files (.tf files), NOT what's actually deployed. Use this to answer questions about what resources are defined in code, their types, counts, or configuration details. For deployed/created resources, use get_terraform_state instead.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
@@ -170,7 +170,7 @@ class ClaudeProcessor:
             },
             {
                 "name": "get_terraform_state",
-                "description": "Get information about the current Terraform state to see what resources are actually deployed and managed.",
+                "description": "Get information about the current Terraform state to see what resources are actually deployed and managed. Use this when the user asks: 'what resources have been created', 'what's deployed', 'what exists', 'show me what's running', 'list deployed resources', or any variation asking about actual infrastructure state.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
@@ -202,9 +202,16 @@ class ClaudeProcessor:
 - Always explain what a terraform command will do before executing destructive operations
 - For 'apply' or 'destroy' commands, confirm user intent and warn about infrastructure changes
 - Provide clear, actionable responses with relevant details
-- Use your tools to get real-time information rather than guessing
+- **ALWAYS use your tools to get real-time information rather than guessing**
 - Format responses with proper markdown for readability
 - Be security-conscious and highlight potential risks
+
+**Key Tool Usage Patterns**:
+- When user asks "what resources are created/deployed/exist": Use `get_terraform_state` tool
+- When user asks "what will happen/what changes": Use `execute_terraform_plan` tool
+- When user asks "is the config valid": Use `execute_terraform_validate` tool
+- When user asks about specific resource types: Use `get_resources` tool
+- When user asks "show me X" or "list X": First check state with `get_terraform_state`, then filter results
 
 **Available Tools**:
 You have access to tools for executing terraform commands and querying infrastructure. Use them appropriately based on user requests.""",
@@ -499,9 +506,29 @@ You have access to tools for executing terraform commands and querying infrastru
         if tool_uses and use_tools:
             # Execute tools and get final response
             tool_results = []
+            assistant_content = []
+
             for tool_use in tool_uses:
-                tool_input = json.loads(tool_use["input"])
+                # Parse tool input safely
+                if isinstance(tool_use["input"], str):
+                    try:
+                        tool_input = json.loads(tool_use["input"]) if tool_use["input"].strip() else {}
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Failed to parse tool input: {tool_use['input']}, error: {e}")
+                        tool_input = {}
+                else:
+                    tool_input = tool_use["input"]
+
                 result = await self._execute_tool(tool_use["name"], tool_input)
+
+                # Build assistant content with proper structure
+                assistant_content.append({
+                    "type": "tool_use",
+                    "id": tool_use["id"],
+                    "name": tool_use["name"],
+                    "input": tool_input  # Already parsed JSON
+                })
+
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": tool_use["id"],
@@ -511,24 +538,38 @@ You have access to tools for executing terraform commands and querying infrastru
             # Add tool results and get final response
             self.conversation_history.append({
                 "role": "assistant",
-                "content": [{"type": "tool_use", **tu} for tu in tool_uses]
+                "content": assistant_content
             })
             self.conversation_history.append({
                 "role": "user",
                 "content": tool_results
             })
 
-            # Get final response after tool execution
-            final_response = await self.async_client.messages.create(
+            # Get final response after tool execution (with streaming)
+            final_accumulated_text = []
+
+            async with self.async_client.messages.stream(
                 model=self.config.anthropic_model,
                 max_tokens=self.config.anthropic_max_tokens,
                 system=system_messages,
                 tools=[],  # No more tools needed
                 messages=self.conversation_history
-            )
+            ) as stream:
+                async for event in stream:
+                    if hasattr(event, 'type'):
+                        if event.type == "content_block_delta":
+                            if hasattr(event, 'delta') and event.delta.type == "text_delta":
+                                text = event.delta.text
+                                final_accumulated_text.append(text)
+                                if self.stream_callback:
+                                    self.stream_callback(text)
+                        elif event.type == "message_stop":
+                            if hasattr(stream, 'get_final_message'):
+                                final_message = await stream.get_final_message()
+                                if hasattr(final_message, 'usage'):
+                                    self._track_token_usage(final_message.usage)
 
-            self._track_token_usage(final_response.usage)
-            return self._extract_text_from_response(final_response)
+            return ''.join(final_accumulated_text) if final_accumulated_text else "I couldn't generate a response."
 
         # Return accumulated text
         full_text = ''.join(accumulated_text)

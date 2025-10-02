@@ -12,6 +12,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
+from rich.text import Text
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import InMemoryHistory
@@ -77,7 +78,7 @@ class EnhancedCLI:
     def show_welcome(self):
         """Show enhanced welcome screen"""
         welcome_text = """
-[bold #00D4AA]🤖 Terraform AI Agent[/bold #00D4AA]
+[bold #00D4AA]🤖 DZP IAC Agent[/bold #00D4AA]
 
 [dim]Intelligent infrastructure automation powered by Claude AI[/dim]
 
@@ -97,7 +98,7 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
         """
 
         panel = Panel(
-            Markdown(welcome_text),
+            Text.from_markup(welcome_text),
             title="🚀 Welcome",
             title_align="center",
             border_style="#00D4AA",
@@ -210,6 +211,7 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
     
     def show_ai_response(self, response: str):
         """Display AI response in a beautiful panel"""
+        # Use Markdown for AI responses as they may contain markdown formatting
         panel = Panel(
             Markdown(response),
             title="🤖 AI Response",
@@ -233,7 +235,7 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
     def show_help(self):
         """Show enhanced help"""
         help_text = """
-[bold #00D4AA]📚 Terraform AI Agent - Help Guide[/bold #00D4AA]
+[bold #00D4AA]📚 DZP IAC Agent - Help Guide[/bold #00D4AA]
 
 [bold]💬 Ask Questions (Natural Language):[/bold]
 • [#4ECDC4]How many resources are defined?[/#4ECDC4]
@@ -265,7 +267,7 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
         """
 
         panel = Panel(
-            Markdown(help_text),
+            Text.from_markup(help_text),
             title="📖 Help",
             title_align="center",
             border_style="#00D4AA",
@@ -284,13 +286,13 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
 [dim]Commands Processed:[/dim] [bold]{len(conversation_history) // 2}[/bold]
 [dim]Conversation History:[/dim] [bold]{len(conversation_history)} messages[/bold]
 
-[dim]AI Engine:[/dim] [ #4ECDC4]LangChain + Azure OpenAI[/#4ECDC4]
-[dim]Knowledge Base:[/dim] [ #95E77E]RAG Enabled[/#95E77E]
-[dim]Memory:[/dim] [ #6C63FF]Conversation Context Active[/#6C63FF]
+[dim]AI Engine:[/dim] [#4ECDC4]Claude AI (Native Tool Use)[/#4ECDC4]
+[dim]Model:[/dim] [#95E77E]Claude 3.5 Sonnet[/#95E77E]
+[dim]Memory:[/dim] [#6C63FF]Conversation Context Active[/#6C63FF]
         """
-        
+
         panel = Panel(
-            Markdown(status_text),
+            Text.from_markup(status_text),
             title="📈 Status",
             border_style="#4ECDC4",
             padding=(1, 2)
@@ -302,7 +304,7 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
     def show_goodbye(self, session_duration: datetime, conversation_history: List[Dict[str, str]]):
         """Show enhanced goodbye message"""
         goodbye_text = f"""
-[bold #00D4AA]👋 Thank you for using Terraform AI Agent![/bold #00D4AA]
+[bold #00D4AA]👋 Thank you for using DZP IAC Agent![/bold #00D4AA]
 
 [dim]Session Summary:[/dim]
 • Session Duration: {session_duration.total_seconds():.0f} seconds
@@ -312,7 +314,7 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
         """
         
         panel = Panel(
-            Markdown(goodbye_text),
+            Text.from_markup(goodbye_text),
             title="Goodbye",
             title_align="center",
             border_style="#00D4AA",
@@ -324,7 +326,7 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
     def show_initial_help(self):
         """Show initial help panel"""
         help_panel = Panel(
-            "[dim]Ask me anything about your Terraform infrastructure, or type[/dim] [#4ECDC4]help[/#4ECDC4] [dim]for examples[/dim]",
+            Text.from_markup("[dim]Ask me anything about your Terraform infrastructure, or type[/dim] [#4ECDC4]help[/#4ECDC4] [dim]for examples[/dim]"),
             border_style="#4ECDC4",
             padding=(1, 2)
         )
@@ -335,7 +337,7 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
         try:
             # Clean, professional prompt
             command = await self.session.prompt_async(
-                "\n[bold #00D4AA]>[/bold #00D4AA] "
+                [('class:prompt', '\n> ')]
             )
 
             command = command.strip()

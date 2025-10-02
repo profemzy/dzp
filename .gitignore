@@ -1,4 +1,86 @@
+# IDE
 .idea
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment & Credentials
 .env
-chroma_db
+.env.local
+.env.*.local
+*.pem
+*.key
+*.cert
+credentials.json
+secrets.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
 .venv
+venv/
+ENV/
+env/
+.virtualenv
+
+# Databases & Vector Stores
+chroma_db/
+*.db
+*.sqlite
+*.sqlite3
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Logs
+*.log
+logs/
+*.out
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Session & Cache
+*.json.bak
+conversation_export*.json
+*-session.json
+.cache/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/

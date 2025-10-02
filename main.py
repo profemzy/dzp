@@ -21,12 +21,36 @@ logger = get_logger(__name__)
 
 class TerraformAgentApp:
     """Main application class coordinating UI and business logic"""
-    
+
     def __init__(self):
         self.config = Config()
         self.agent = TerraformAgent(self.config)
         self.cli = EnhancedCLI()
-    
+
+        # Setup streaming callback for real-time responses
+        self._setup_streaming()
+
+        # Track if we're currently streaming
+        self.is_streaming = False
+        self.streaming_started = False
+
+    def _setup_streaming(self):
+        """Setup streaming callback for real-time response display"""
+        def stream_callback(text: str):
+            """Callback function for streaming responses"""
+            if not self.streaming_started:
+                # Start the streaming panel
+                self.cli.console.print("\n[bold #00D4AA]🤖 AI Response[/bold #00D4AA]")
+                self.streaming_started = True
+
+            # Print streaming text without newline
+            self.cli.console.print(text, end="", markup=False)
+
+        # Register the callback with the AI processor
+        if hasattr(self.agent.ai_processor, 'set_stream_callback'):
+            self.agent.ai_processor.set_stream_callback(stream_callback)
+            logger.info("Streaming callback registered successfully")
+
     async def run(self):
         """Run the main application"""
         # Initialize UI
@@ -46,9 +70,16 @@ class TerraformAgentApp:
                 # Get user input (now async)
                 command = await self.cli.get_command_input()
 
+                # Reset streaming flags
+                self.streaming_started = False
+
                 # Process command asynchronously
                 response = await self.agent.process_command_async(command)
-                
+
+                # Add spacing after streaming response
+                if self.streaming_started:
+                    self.cli.console.print("\n")  # Close streaming output
+
                 # Handle response
                 await self._handle_response(response)
                 
@@ -83,15 +114,17 @@ class TerraformAgentApp:
         elif response.startswith("Error"):
             self.cli.show_error(response)
         elif response:
-            # Show command processing
-            last_command = self.agent.get_conversation_history()[-1]["content"]
-            self.cli.show_command_processing(last_command)
+            # Only show response if it wasn't already streamed
+            if not self.streaming_started:
+                # Show command processing
+                last_command = self.agent.get_conversation_history()[-1]["content"]
+                self.cli.show_command_processing(last_command)
 
-            # Show typing indicator and response
-            with self.cli.console.status("[bold #00D4AA]🤖 Thinking...[/bold #00D4AA]"):
-                await asyncio.sleep(0.1)  # Brief pause for UX
+                # Show typing indicator and response
+                with self.cli.console.status("[bold #00D4AA]🤖 Thinking...[/bold #00D4AA]"):
+                    await asyncio.sleep(0.1)  # Brief pause for UX
 
-            self.cli.show_ai_response(response)
+                self.cli.show_ai_response(response)
 
     async def _handle_token_usage(self):
         """Handle token usage display"""

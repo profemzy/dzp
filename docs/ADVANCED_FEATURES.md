@@ -1,6 +1,6 @@
 # 🚀 Claude Advanced Features Guide
 
-This document covers the advanced Claude SDK features integrated into the Terraform AI Agent.
+This document covers the advanced Claude SDK features integrated into the DZP IAC Agent.
 
 ## 📋 Table of Contents
 

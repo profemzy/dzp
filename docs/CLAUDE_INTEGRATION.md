@@ -1,6 +1,6 @@
 # 🤖 Claude AI Integration - Native Tool Use
 
-This branch introduces **Claude AI** with **native tool use** as the primary AI engine for the Terraform Agent, replacing the LangChain-based approach.
+This branch introduces **Claude AI** with **native tool use** as the primary AI engine for the DZP IAC Agent, replacing the LangChain-based approach.
 
 ## 🌟 What's New
 
