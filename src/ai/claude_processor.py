@@ -8,12 +8,12 @@ Uses Anthropic's Claude API with advanced features:
 - Vision support for infrastructure diagrams
 """
 
-import json
 import asyncio
-from typing import List, Dict, Any, Optional, AsyncIterator, Callable
+import json
+from typing import List, Dict, Any, Optional, Callable
+
 from anthropic import Anthropic, AsyncAnthropic
-from anthropic.types import Message, TextBlock, ToolUseBlock, Usage, ContentBlock
-from anthropic.types import MessageStreamEvent
+from anthropic.types import Message, TextBlock, ToolUseBlock, Usage
 
 from src.core.config import Config
 from src.core.logger import get_logger

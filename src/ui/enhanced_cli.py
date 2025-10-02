@@ -46,27 +46,29 @@ class EnhancedCLI:
     
     def _setup_prompt_session(self):
         """Setup prompt_toolkit session with history and key bindings"""
-        # Define slash commands for completion
-        self.slash_completer = WordCompleter([
-            'help', 'clear', 'status', 'exit', 'quit',
-            'show all resources', 'run terraform plan', 'validate configuration'
+        # Define command completion suggestions
+        self.command_completer = WordCompleter([
+            'help', 'clear', 'status', 'tokens', 'usage', 'exit', 'quit',
+            'show all resources', 'run terraform plan', 'validate configuration',
+            'how many resources', 'what virtual machines', 'analyze security',
+            'export', 'import'
         ], ignore_case=True)
-        
-        # Key bindings for slash commands
+
+        # Key bindings
         kb = KeyBindings()
-        
+
         @kb.add(Keys.ControlC)
         def _(event):
             event.app.exit()
-        
+
         # Style for prompt
         style = Style.from_dict({
             'prompt': '#00D4AA bold',
         })
-        
+
         self.session = PromptSession(
             history=self.history,
-            completer=self.slash_completer,
+            completer=self.command_completer,
             key_bindings=kb,
             style=style,
             wrap_lines=True
@@ -75,19 +77,25 @@ class EnhancedCLI:
     def show_welcome(self):
         """Show enhanced welcome screen"""
         welcome_text = """
-[bold #00D4AA]🤖 Terraform AI Agent - Enhanced CLI Mode[/bold #00D4AA]
+[bold #00D4AA]🤖 Terraform AI Agent[/bold #00D4AA]
 
-[dim]Your intelligent infrastructure companion powered by LangChain & Azure OpenAI[/dim]
+[dim]Intelligent infrastructure automation powered by Claude AI[/dim]
 
-[bold]✨ Features:[/bold]
-• 🧠 [link=https://python.langchain.com]LangChain[/link] integration with conversation memory
-• 🔍 RAG (Retrieval-Augmented Generation) capabilities  
-• 🎯 Context-aware responses
-• 🏗️ Terraform infrastructure analysis
-• 💬 Natural language interface
-• 🎨 Beautiful terminal UI
+[bold]What I can do:[/bold]
+• 💬 Answer questions about your infrastructure in plain English
+• 🔍 Analyze Terraform configurations and resources
+• ⚙️  Execute terraform commands (plan, apply, validate, etc.)
+• 🧠 Provide recommendations with deep reasoning
+• 💰 Track token usage and costs
+
+[bold]Quick Commands:[/bold]
+Type [#4ECDC4]help[/#4ECDC4] to see all available commands
+Type [#4ECDC4]tokens[/#4ECDC4] to view usage and costs
+Type [#4ECDC4]exit[/#4ECDC4] to quit
+
+[dim]💡 Just ask me anything about your Terraform infrastructure![/dim]
         """
-        
+
         panel = Panel(
             Markdown(welcome_text),
             title="🚀 Welcome",
@@ -95,7 +103,7 @@ class EnhancedCLI:
             border_style="#00D4AA",
             padding=(1, 2)
         )
-        
+
         self.console.print(panel)
         self.console.print()
     
@@ -225,33 +233,45 @@ class EnhancedCLI:
     def show_help(self):
         """Show enhanced help"""
         help_text = """
-[bold #00D4AA]🤖 Terraform AI Agent Help[/bold #00D4AA]
+[bold #00D4AA]📚 Terraform AI Agent - Help Guide[/bold #00D4AA]
 
-[dim]Natural Language Commands:[/dim]
-• [#4ECDC4]show all virtual machines[/#4ECDC4] - List all VM instances
-• [ #4ECDC4]what is the name of the resource group[/#4ECDC4] - Get resource group info
-• [ #4ECDC4]run terraform plan[/#4ECDC4] - Execute terraform plan
-• [ #4ECDC4]validate configuration[/#4ECDC4] - Check terraform syntax
-• [ #4ECDC4]show all resources[/#4ECDC4] - List all resources
-• [ #4ECDC4]upgrade the drive size of the ops-vm[/#4ECDC4] - Modify resources
+[bold]💬 Ask Questions (Natural Language):[/bold]
+• [#4ECDC4]How many resources are defined?[/#4ECDC4]
+• [#4ECDC4]Show all virtual machines[/#4ECDC4]
+• [#4ECDC4]What is the resource group name?[/#4ECDC4]
+• [#4ECDC4]Analyze the security of this infrastructure[/#4ECDC4]
+• [#4ECDC4]Should I migrate to Kubernetes?[/#4ECDC4]
 
-[dim]Slash Commands:[/dim]
-• [ #6C63FF]/help, /h[/#6C63FF] - Show this help
-• [ #6C63FF]/clear, /cls[/#6C63FF] - Clear screen
-• [ #6C63FF]/status[/#6C63FF] - Show session status
-• [ #FF6B6B]/exit, /quit, /q[/#FF6B6B] - Exit the agent
+[bold]⚙️  Execute Terraform Commands:[/bold]
+• [#4ECDC4]run terraform plan[/#4ECDC4]
+• [#4ECDC4]validate configuration[/#4ECDC4]
+• [#4ECDC4]show terraform state[/#4ECDC4]
+• [#4ECDC4]terraform init[/#4ECDC4]
 
-[dim]💡 Tip:[/dim] Use ↑↓ arrows for command history. Tab for autocomplete. Ask follow-up questions like [bold]what are they?[/bold] or [bold]tell me more[/bold]
+[bold]🛠️  Utility Commands:[/bold]
+• [#6C63FF]help[/#6C63FF] - Show this help message
+• [#6C63FF]tokens[/#6C63FF] or [#6C63FF]usage[/#6C63FF] - View token usage and costs
+• [#6C63FF]status[/#6C63FF] - Show session information
+• [#6C63FF]clear[/#6C63FF] - Clear the screen
+• [#6C63FF]export <filename>[/#6C63FF] - Export conversation history
+• [#6C63FF]import <filename>[/#6C63FF] - Import conversation history
+• [#FF6B6B]exit[/#FF6B6B] or [#FF6B6B]quit[/#FF6B6B] - Exit the agent
+
+[bold]💡 Tips:[/bold]
+• Use ↑/↓ arrows to navigate command history
+• Press Tab for command autocomplete
+• Ask follow-up questions naturally ([#95E77E]"what are they?"[/#95E77E], [#95E77E]"tell me more"[/#95E77E])
+• Complex questions trigger extended thinking mode automatically 🧠
         """
-        
+
         panel = Panel(
             Markdown(help_text),
-            title="📚 Help",
+            title="📖 Help",
             title_align="center",
             border_style="#00D4AA",
             padding=(1, 2)
         )
-        
+
         self.console.print(panel)
         self.console.print()
     
@@ -304,72 +324,30 @@ class EnhancedCLI:
     def show_initial_help(self):
         """Show initial help panel"""
         help_panel = Panel(
-            "[dim]Type your commands in natural language or 'help' for available commands[/dim]",
+            "[dim]Ask me anything about your Terraform infrastructure, or type[/dim] [#4ECDC4]help[/#4ECDC4] [dim]for examples[/dim]",
             border_style="#4ECDC4",
             padding=(1, 2)
         )
         self.console.print(help_panel)
-    
+
     async def get_command_input(self) -> str:
-        """Get command input from user with history and slash commands"""
+        """Get command input from user with history"""
         try:
-            # Prompt with slash indicator - use prompt_async for async context
+            # Clean, professional prompt
             command = await self.session.prompt_async(
-                "\n[bold #00D4AA]🔍 Enter your command (use / for slash commands)[/bold #00D4AA] "
+                "\n[bold #00D4AA]>[/bold #00D4AA] "
             )
 
             command = command.strip()
 
-            # Handle slash commands
-            if command.startswith('/'):
-                return self._handle_slash_command(command)
-
             # Add to history
-            if command and command != 'exit':
+            if command and command not in ['exit', 'quit']:
                 self.history.append_string(command)
 
             return command
 
         except (KeyboardInterrupt, EOFError):
             return "exit"
-    
-    def _handle_slash_command(self, command: str) -> str:
-        """Handle slash commands"""
-        cmd_lower = command.lower().strip()
-        
-        if cmd_lower in ['/help', '/h']:
-            self.show_help()
-            return "help"
-        elif cmd_lower in ['/clear', '/cls']:
-            self.clear_screen()
-            return "clear"
-        elif cmd_lower == '/status':
-            # Note: session_duration and history need to be passed or tracked
-            # For now, just show a basic status
-            self.show_status_placeholder()
-            return "status"
-        elif cmd_lower in ['/exit', '/quit', '/q']:
-            return "exit"
-        else:
-            self.console.print(f"[#FF6B6B]Unknown slash command: {command}. Type /help for available commands.[/#FF6B6B]")
-            return ""
-    
-    def show_status_placeholder(self):
-        """Placeholder for status (requires session data)"""
-        status_text = """
-[bold #00D4AA]📊 Session Status[/bold #00D4AA]
-
-[dim]Session active with command history enabled[/dim]
-[dim]Use ↑↓ for previous commands, Tab for autocomplete[/dim]
-        """
-        panel = Panel(
-            Markdown(status_text),
-            title="📈 Status",
-            border_style="#4ECDC4",
-            padding=(1, 2)
-        )
-        self.console.print(panel)
-        self.console.print()
     
     def show_knowledge_base_progress(self, description: str):
         """Show knowledge base initialization progress"""
