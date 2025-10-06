@@ -6,6 +6,9 @@ Uses Anthropic's Claude API with advanced features:
 - Streaming responses for better UX
 - Token counting and budget management
 - Vision support for infrastructure diagrams
+- Model Context Protocol (MCP) integration
+- Batch processing for cost savings
+- Parallel tool execution
 """
 
 import asyncio
@@ -15,8 +18,10 @@ from typing import Any, Callable, Dict, List, Optional
 from anthropic import Anthropic, AsyncAnthropic
 from anthropic.types import Message, TextBlock, ToolUseBlock, Usage
 
+from src.ai.batch_processor import BatchProcessor, BatchQueryBuilder
 from src.core.config import Config
 from src.core.logger import get_logger
+from src.integrations.mcp_client import MCPManager
 
 logger = get_logger(__name__)
 
@@ -56,6 +61,18 @@ class ClaudeProcessor:
         else:
             logger.warning("Anthropic API key not available, Claude processor disabled")
 
+        # Initialize MCP Manager for external tool integration
+        self.mcp_manager = MCPManager()
+        self.mcp_initialized = False
+
+        # Initialize Batch Processor
+        self.batch_processor = None
+        if self.async_client:
+            self.batch_processor = BatchProcessor(
+                self.async_client, config.anthropic_model
+            )
+            logger.info("Batch processor initialized")
+
         # Define tools for Claude to use
         self.tools = self._define_tools()
 
@@ -70,9 +87,31 @@ class ClaudeProcessor:
         self.tool_handlers[tool_name] = handler
         logger.debug(f"Registered tool handler: {tool_name}")
 
+    async def initialize_mcp(self):
+        """Initialize MCP integration"""
+        if not self.mcp_initialized:
+            try:
+                await self.mcp_manager.initialize()
+                self.mcp_initialized = True
+
+                # Refresh tools to include MCP tools
+                self.tools = self._define_tools()
+
+                logger.info("MCP integration initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize MCP: {e}")
+
+    def _get_mcp_tools(self) -> List[Dict[str, Any]]:
+        """Get tools from MCP servers"""
+        if not self.mcp_initialized:
+            return []
+
+        mcp_client = self.mcp_manager.get_client()
+        return mcp_client.get_available_tools()
+
     def _define_tools(self) -> List[Dict[str, Any]]:
         """Define tools that Claude can use for Terraform operations"""
-        return [
+        base_tools = [
             {
                 "name": "execute_terraform_plan",
                 "description": "Execute 'terraform plan' command to show what changes Terraform will make to infrastructure. Use this when the user asks about planned changes, wants to see what will happen, or asks to run a plan.",
@@ -187,6 +226,14 @@ class ClaudeProcessor:
                 },
             },
         ]
+
+        # Add MCP tools if initialized
+        mcp_tools = self._get_mcp_tools()
+        if mcp_tools:
+            logger.info(f"Adding {len(mcp_tools)} MCP tools to available tools")
+            base_tools.extend(mcp_tools)
+
+        return base_tools
 
     def _build_system_context(
         self, project_data: Dict[str, Any] = None
@@ -412,24 +459,37 @@ You have access to tools for executing terraform commands and querying infrastru
 
         tool_results = []
         assistant_content = []
+        tool_use_blocks = []
 
-        # Process all content blocks
+        # Process all content blocks and collect tool uses
         for block in response.content:
             if isinstance(block, TextBlock):
                 assistant_content.append(block.model_dump())
             elif isinstance(block, ToolUseBlock):
                 assistant_content.append(block.model_dump())
+                tool_use_blocks.append(block)
 
-                # Execute the tool
+        # Execute all tools in parallel for faster response
+        if tool_use_blocks:
+            logger.info(f"Executing {len(tool_use_blocks)} tools in parallel")
+
+            # Create tasks for parallel execution
+            tool_tasks = []
+            for block in tool_use_blocks:
                 tool_name = block.name
                 tool_input = block.input
+                logger.info(f"Claude is using tool: {tool_name} with input: {tool_input}")
+                tool_tasks.append(self._execute_tool(tool_name, tool_input))
 
-                logger.info(
-                    f"Claude is using tool: {tool_name} with input: {tool_input}"
-                )
+            # Execute all tools concurrently
+            tool_execution_results = await asyncio.gather(*tool_tasks, return_exceptions=True)
 
-                # Execute tool handler
-                result = await self._execute_tool(tool_name, tool_input)
+            # Build tool results
+            for block, result in zip(tool_use_blocks, tool_execution_results):
+                # Handle exceptions from tool execution
+                if isinstance(result, Exception):
+                    logger.error(f"Tool {block.name} failed with exception: {result}")
+                    result = {"error": str(result), "tool": block.name}
 
                 tool_results.append(
                     {
@@ -478,12 +538,25 @@ You have access to tools for executing terraform commands and querying infrastru
             except Exception as e:
                 logger.error(f"Tool handler '{tool_name}' failed: {e}")
                 return {"error": str(e), "tool": tool_name}
-        else:
-            logger.warning(f"No handler registered for tool: {tool_name}")
-            return {
-                "error": f"Tool handler not registered: {tool_name}",
-                "available_tools": list(self.tool_handlers.keys()),
-            }
+
+        # Check if this is an MCP tool
+        if self.mcp_initialized:
+            mcp_tool_names = [t["name"] for t in self._get_mcp_tools()]
+            if tool_name in mcp_tool_names:
+                try:
+                    logger.info(f"Executing MCP tool: {tool_name}")
+                    mcp_client = self.mcp_manager.get_client()
+                    result = await mcp_client.execute_tool(tool_name, tool_input)
+                    return result
+                except Exception as e:
+                    logger.error(f"MCP tool '{tool_name}' failed: {e}")
+                    return {"error": str(e), "tool": tool_name}
+
+        logger.warning(f"No handler registered for tool: {tool_name}")
+        return {
+            "error": f"Tool handler not registered: {tool_name}",
+            "available_tools": list(self.tool_handlers.keys()),
+        }
 
     async def _process_with_streaming(
         self,
@@ -893,3 +966,144 @@ In the meantime, you can still use basic commands like 'status', 'help', or 'cle
     def get_conversation_history(self) -> List[Dict[str, Any]]:
         """Get conversation history"""
         return self.conversation_history.copy()
+
+    # Batch Processing Methods
+
+    async def batch_security_scan(
+        self, resources: List[Dict[str, Any]], project_data: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Perform batch security scanning of resources
+
+        Args:
+            resources: List of resources to scan
+            project_data: Project context data
+
+        Returns:
+            Batch processing results
+        """
+        if not self.batch_processor:
+            return {"error": "Batch processor not available"}
+
+        try:
+            system_context = self._build_system_context(project_data)
+
+            # Build batch requests
+            requests = BatchQueryBuilder.build_security_scan_batch(
+                resources, system_context
+            )
+
+            # Create and execute batch
+            batch_result = await self.batch_processor.create_batch(
+                requests, description="Security scan batch"
+            )
+
+            logger.info(f"Security scan batch created: {batch_result.get('batch_id')}")
+            return batch_result
+
+        except Exception as e:
+            logger.error(f"Batch security scan failed: {e}")
+            return {"error": str(e)}
+
+    async def batch_cost_analysis(
+        self, resources: List[Dict[str, Any]], project_data: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Perform batch cost analysis of resources
+
+        Args:
+            resources: List of resources to analyze
+            project_data: Project context data
+
+        Returns:
+            Batch processing results
+        """
+        if not self.batch_processor:
+            return {"error": "Batch processor not available"}
+
+        try:
+            system_context = self._build_system_context(project_data)
+
+            # Build batch requests
+            requests = BatchQueryBuilder.build_cost_analysis_batch(
+                resources, system_context
+            )
+
+            # Create and execute batch
+            batch_result = await self.batch_processor.create_batch(
+                requests, description="Cost analysis batch"
+            )
+
+            logger.info(f"Cost analysis batch created: {batch_result.get('batch_id')}")
+            return batch_result
+
+        except Exception as e:
+            logger.error(f"Batch cost analysis failed: {e}")
+            return {"error": str(e)}
+
+    async def batch_compliance_check(
+        self,
+        resources: List[Dict[str, Any]],
+        compliance_framework: str = "CIS",
+        project_data: Dict[str, Any] = None,
+    ) -> Dict[str, Any]:
+        """
+        Perform batch compliance checking
+
+        Args:
+            resources: List of resources to check
+            compliance_framework: Framework to check against
+            project_data: Project context data
+
+        Returns:
+            Batch processing results
+        """
+        if not self.batch_processor:
+            return {"error": "Batch processor not available"}
+
+        try:
+            system_context = self._build_system_context(project_data)
+
+            # Build batch requests
+            requests = BatchQueryBuilder.build_compliance_check_batch(
+                resources, compliance_framework, system_context
+            )
+
+            # Create and execute batch
+            batch_result = await self.batch_processor.create_batch(
+                requests, description=f"{compliance_framework} compliance check batch"
+            )
+
+            logger.info(
+                f"Compliance check batch created: {batch_result.get('batch_id')}"
+            )
+            return batch_result
+
+        except Exception as e:
+            logger.error(f"Batch compliance check failed: {e}")
+            return {"error": str(e)}
+
+    async def get_batch_results(
+        self, batch_id: str, wait: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Get results from a batch operation
+
+        Args:
+            batch_id: ID of the batch
+            wait: Whether to wait for completion
+
+        Returns:
+            Batch results
+        """
+        if not self.batch_processor:
+            return {"error": "Batch processor not available"}
+
+        return await self.batch_processor.get_batch_results(batch_id, wait=wait)
+
+    def list_batches(self) -> List[Dict[str, Any]]:
+        """List all batch operations"""
+        if not self.batch_processor:
+            return []
+
+        return self.batch_processor.list_batches()

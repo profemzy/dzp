@@ -37,6 +37,19 @@ class TerraformAgent:
         # Setup task engine callbacks
         self.task_engine.add_task_callback(self._on_task_update)
 
+        # MCP initialization flag
+        self.mcp_initialized = False
+
+    async def initialize_async(self):
+        """Async initialization for MCP and other async components"""
+        if not self.mcp_initialized:
+            try:
+                await self.ai_processor.initialize_mcp()
+                self.mcp_initialized = True
+                logger.info("Agent async initialization complete")
+            except Exception as e:
+                logger.warning(f"MCP initialization failed (will continue without MCP): {e}")
+
     def _setup_claude_tools(self):
         """Setup tool handlers for Claude processor"""
         # Register all tool handlers

@@ -58,6 +58,10 @@ class TerraformAgentApp:
         self.cli.clear_screen()
         self.cli.show_welcome()
 
+        # Initialize async components (MCP, etc.)
+        logger.info("Initializing async components...")
+        await self.agent.initialize_async()
+
         # Show project information
         project_data = self.agent.get_project_data()
         self.cli.show_project_overview(project_data)
