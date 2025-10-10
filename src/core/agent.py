@@ -23,7 +23,7 @@ class TerraformAgent:
         self.config = config
         self.task_engine = TaskEngine(config)
 
-        # Initialize Enhanced AI processor (supports Claude and DeepAgents)
+        # Initialize Enhanced AI processor (supports OpenAI-compatible models and DeepAgents)
         logger.info("Initializing Enhanced AI processor")
         self.ai_processor = EnhancedAIProcessor(config)
         self._setup_ai_tools()
@@ -276,14 +276,14 @@ class TerraformAgent:
         return self.task_engine.get_project_data()
 
     def _build_context_aware_prompt(self, command: str) -> str:
-        """Build a context-aware prompt for Claude that includes conversation history"""
+        """Build a context-aware prompt that includes conversation history"""
 
         # Build context from recent interactions
         context_parts = []
 
         if self.last_command and self.last_result:
             context_parts.append(f"Previous Command: {self.last_command}")
-            context_parts.append(f"Previous Result: {self._format_context_for_claude()}")
+            context_parts.append(f"Previous Result: {self._format_context_for_ai()}")
 
             if self.last_plan_summary:
                 context_parts.append(f"Plan Summary: {self.last_plan_summary}")
@@ -316,8 +316,8 @@ Instructions:
 
         return full_prompt
 
-    def _format_context_for_claude(self) -> str:
-        """Format last result for Claude context"""
+    def _format_context_for_ai(self) -> str:
+        """Format last result for AI context"""
         if not self.last_result:
             return "No previous result"
 
@@ -640,27 +640,33 @@ Instructions:
         response = "**📋 State Resources:**\n"
 
         output = result.get("output", "")
-        if isinstance(output, str):
-            # Count resources by type
-            lines = output.split("\n")
-            resource_count = len([line for line in lines if line.strip()])
 
-            if resource_count > 0:
-                response += (
-                    f"📦 **Total Resources:** {resource_count} resources in state.\n"
-                )
+        # Handle both list and string formats
+        if isinstance(output, list):
+            resources = output
+        elif isinstance(output, str):
+            resources = [line.strip() for line in output.split("\n") if line.strip()]
+        else:
+            resources = []
 
-                # Show first few as examples
-                examples = [line.strip() for line in lines[:5] if line.strip()]
-                if examples:
-                    response += "\n**Sample Resources:**\n"
-                    for example in examples:
-                        response += f"• {example}\n"
+        resource_count = len(resources)
 
-                if resource_count > 5:
-                    response += f"\n... and {resource_count - 5} more resources.\n"
-            else:
-                response += "📭 **No resources** found in state.\n"
+        if resource_count > 0:
+            response += (
+                f"📦 **Total Resources:** {resource_count} resources in state.\n"
+            )
+
+            # Show first few as examples
+            examples = resources[:5]
+            if examples:
+                response += "\n**Sample Resources:**\n"
+                for example in examples:
+                    response += f"• {example}\n"
+
+            if resource_count > 5:
+                response += f"\n... and {resource_count - 5} more resources.\n"
+        else:
+            response += "📭 **No resources** found in state.\n"
 
         return response + "\n"
 
@@ -796,7 +802,7 @@ Instructions:
         return self.ai_processor.get_processor_info()
     
     def switch_processor(self, use_deepagents: Optional[bool] = None) -> bool:
-        """Switch between Claude and DeepAgents processors"""
+        """Switch between standard and DeepAgents processors"""
         return self.ai_processor.switch_processor(use_deepagents)
     
     def get_available_workflows(self) -> Dict[str, Any]:

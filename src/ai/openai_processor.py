@@ -24,13 +24,16 @@ class OpenAIProcessor:
         self.config = config
         self.model = None
         self.conversation_history: List[Dict[str, Any]] = []
-        
+
         # Initialize the model
         self._initialize_model()
-        
+
         # Token tracking
         self.total_input_tokens = 0
         self.total_output_tokens = 0
+
+        # Streaming callback
+        self.stream_callback: Optional[Callable[[str], None]] = None
 
     def _initialize_model(self):
         """Initialize OpenAI Compatible model"""
@@ -58,9 +61,19 @@ class OpenAIProcessor:
         # Store tool handlers for potential future use
         if not hasattr(self, 'tool_handlers'):
             self.tool_handlers = {}
-        
+
         self.tool_handlers[tool_name] = handler
         logger.info(f"Registered tool handler: {tool_name}")
+
+    def set_stream_callback(self, callback: Callable[[str], None]):
+        """
+        Set callback function for streaming responses
+
+        Args:
+            callback: Function to call with each streamed chunk
+        """
+        self.stream_callback = callback
+        logger.info("Stream callback registered")
 
     @retry(
         stop=stop_after_attempt(3),
@@ -75,11 +88,11 @@ class OpenAIProcessor:
     async def process_request(self, request: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Process a user request using OpenAI Compatible model
-        
+
         Args:
             request: The user's request
             context: Additional context (files, previous results, etc.)
-            
+
         Returns:
             Response dictionary with messages
         """
@@ -87,23 +100,34 @@ class OpenAIProcessor:
             # Validate input
             if not request or not request.strip():
                 raise ValueError("Request cannot be empty")
-            
+
             # Build conversation messages
             messages = self._build_messages(request, context)
-            
-            # Get response from model with retry
-            response = await self._invoke_model_with_retry(messages)
-            
+
+            # Use streaming if callback is set
+            if self.stream_callback:
+                response_content = ""
+                async for chunk in self.model.astream(messages):
+                    if hasattr(chunk, 'content') and chunk.content:
+                        response_content += chunk.content
+                        self.stream_callback(chunk.content)
+
+                # Create response object
+                response = AIMessage(content=response_content)
+            else:
+                # Get response from model with retry (non-streaming)
+                response = await self._invoke_model_with_retry(messages)
+
             # Update token usage
             if hasattr(response, 'usage_metadata'):
                 usage = response.usage_metadata
                 self.total_input_tokens += usage.get('input_tokens', 0)
                 self.total_output_tokens += usage.get('output_tokens', 0)
-            
+
             # Add to conversation history
             self.conversation_history.append({"role": "user", "content": request})
             self.conversation_history.append({"role": "assistant", "content": response.content})
-            
+
             return {
                 "messages": [response],
                 "usage": {
@@ -112,7 +136,7 @@ class OpenAIProcessor:
                     "total_tokens": self.total_input_tokens + self.total_output_tokens
                 }
             }
-            
+
         except ValueError as e:
             logger.error(f"Validation error: {e}")
             return {

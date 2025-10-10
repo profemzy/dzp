@@ -262,25 +262,75 @@ Always start complex workflows by creating a todo plan. Use sub-agents for speci
 
     async def process_request(self, request: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Process a complex infrastructure request using DeepAgents"""
-        
+
         try:
             logger.info(f"Processing DeepAgents request: {request[:100]}...")
-            
+
+            # Build context-enriched request
+            enriched_request = request
+            if context:
+                # Format project data into the request for better context awareness
+                context_parts = []
+
+                # Add resource information if available
+                resources = context.get("resources", {})
+                if resources:
+                    resource_count = resources.get("count", 0)
+                    if resource_count > 0:
+                        context_parts.append(f"Current Terraform Configuration Context:")
+                        context_parts.append(f"- Total Resources: {resource_count}")
+
+                        # Add resource breakdown by type
+                        by_type = resources.get("by_type", {})
+                        if by_type:
+                            context_parts.append(f"- Resource Types:")
+                            for rtype, count in sorted(by_type.items(), key=lambda x: x[1], reverse=True)[:10]:
+                                context_parts.append(f"  • {rtype}: {count}")
+
+                # Add variables
+                variables = context.get("variables", {})
+                if variables:
+                    var_count = variables.get("count", 0)
+                    if var_count > 0:
+                        context_parts.append(f"- Variables: {var_count}")
+
+                # Add outputs
+                outputs = context.get("outputs", {})
+                if outputs:
+                    output_count = outputs.get("count", 0)
+                    if output_count > 0:
+                        context_parts.append(f"- Outputs: {output_count}")
+
+                # Add providers
+                providers = context.get("providers", {})
+                if providers:
+                    provider_count = providers.get("count", 0)
+                    if provider_count > 0:
+                        context_parts.append(f"- Providers: {provider_count}")
+
+                # Add modules
+                modules = context.get("modules", {})
+                if modules:
+                    module_count = modules.get("count", 0)
+                    if module_count > 0:
+                        context_parts.append(f"- Modules: {module_count}")
+
+                # Prepend context to request if we have any
+                if context_parts:
+                    context_str = "\n".join(context_parts)
+                    enriched_request = f"{context_str}\n\nUser Question: {request}"
+
             # Prepare the agent state
             agent_state = {
-                "messages": [{"role": "user", "content": request}],
+                "messages": [{"role": "user", "content": enriched_request}],
             }
-            
-            # Add any provided context (files, previous results, etc.)
-            if context:
-                agent_state.update(context)
-            
+
             # Invoke the DeepAgents orchestrator
             result = self.agent.invoke(agent_state)
-            
+
             logger.info("DeepAgents request completed successfully")
             return result
-            
+
         except Exception as e:
             logger.error(f"Error processing DeepAgents request: {e}")
             return {

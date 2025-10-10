@@ -73,6 +73,7 @@ dev = [
 ]
 
 [project.scripts]
+dzp = "main:main"
 tf-agent = "main:main"
 dzp-agent = "main:main"
 

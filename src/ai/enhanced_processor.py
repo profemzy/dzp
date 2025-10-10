@@ -109,7 +109,7 @@ class EnhancedAIProcessor:
         Args:
             request: The user's request
             context: Additional context (files, previous results, etc.)
-            stream_callback: Callback for streaming responses (Claude only)
+            stream_callback: Callback for streaming responses (OpenAI-compatible models)
             
         Returns:
             Processor response
@@ -132,6 +132,17 @@ class EnhancedAIProcessor:
                 "error": error_msg,
                 "messages": [{"role": "assistant", "content": error_msg}]
             }
+
+    def set_stream_callback(self, callback: callable):
+        """
+        Set streaming callback for processors that support it
+
+        Args:
+            callback: Function to call with each streamed chunk
+        """
+        if self.openai_processor and hasattr(self.openai_processor, 'set_stream_callback'):
+            self.openai_processor.set_stream_callback(callback)
+            logger.info("Stream callback set on OpenAI processor")
 
     def supports_streaming(self) -> bool:
         """Check if the current processor supports streaming"""

@@ -6,10 +6,17 @@ import asyncio
 from typing import Any, Dict, Optional, Tuple
 from enum import Enum
 
+from rich.console import Console
+from rich.panel import Panel
+from rich.prompt import Confirm, Prompt
+from rich.table import Table
+from rich import box
+
 from src.core.config import Config
 from src.core.logger import get_logger
 
 logger = get_logger(__name__)
+console = Console()
 
 
 class ApprovalStatus(Enum):
@@ -119,24 +126,76 @@ class HumanInTheLoop:
 
     async def _display_approval_request(self, approval_request: Dict[str, Any]) -> Tuple[ApprovalStatus, Optional[Dict[str, Any]]]:
         """
-        Display approval request to user and get response
-        
-        In a real implementation, this would display a rich UI prompt
-        For now, we'll simulate the approval process
+        Display Rich-based approval request to user and get response
         """
-        print(f"\n🔔 APPROVAL REQUIRED")
-        print(f"Operation: {approval_request['tool_name']}")
-        print(f"Risk Level: {approval_request['risk_level']}")
-        print(f"Details: {approval_request['tool_input']}")
-        
-        # Simulate user input - in real implementation this would be interactive
-        # For now, auto-approve for development
-        if self.config.human_in_the_loop:
-            # In production, this would wait for actual user input
-            print("⚠️  Auto-approving for development (enable interactive prompts for production)")
-            return ApprovalStatus.APPROVED, approval_request["tool_input"]
-        else:
-            return ApprovalStatus.APPROVED, approval_request["tool_input"]
+        tool_name = approval_request['tool_name']
+        tool_input = approval_request['tool_input']
+        risk_level = approval_request['risk_level']
+
+        # Create a beautiful approval request panel
+        risk_colors = {
+            "HIGH": "#FF6B6B",
+            "MEDIUM": "#FFD93D",
+            "LOW": "#95E77E"
+        }
+        risk_color = risk_colors.get(risk_level, "#FFFFFF")
+
+        # Create details table
+        details_table = Table(show_header=False, box=box.SIMPLE, padding=(0, 1))
+        details_table.add_column("Key", style="bold #00D4AA")
+        details_table.add_column("Value", style="#FFFFFF")
+
+        details_table.add_row("Operation", tool_name)
+        details_table.add_row("Risk Level", f"[{risk_color}]{risk_level}[/{risk_color}]")
+
+        # Add tool input details
+        for key, value in tool_input.items():
+            if isinstance(value, (str, int, float, bool)):
+                details_table.add_row(key.replace('_', ' ').title(), str(value))
+
+        # Create approval panel
+        panel = Panel(
+            details_table,
+            title="[bold #FFD93D]🔔 APPROVAL REQUIRED[/bold #FFD93D]",
+            border_style=risk_color,
+            padding=(1, 2),
+        )
+
+        console.print("\n")
+        console.print(panel)
+
+        # Display warning message for high-risk operations
+        if risk_level == "HIGH":
+            warning_panel = Panel(
+                "[bold #FF6B6B]⚠️  WARNING: This is a HIGH RISK operation![/bold #FF6B6B]\n"
+                "[dim]This operation will make destructive changes to your infrastructure.\n"
+                "Please review carefully before proceeding.[/dim]",
+                border_style="#FF6B6B",
+                padding=(0, 2),
+            )
+            console.print(warning_panel)
+            console.print()
+
+        # Prompt for approval
+        try:
+            approved = Confirm.ask(
+                "[bold #00D4AA]Do you approve this operation?[/bold #00D4AA]",
+                default=False
+            )
+
+            if approved:
+                logger.info(f"User approved operation: {tool_name}")
+                console.print("[bold #95E77E]✅ Operation approved[/bold #95E77E]\n")
+                return ApprovalStatus.APPROVED, tool_input
+            else:
+                logger.info(f"User rejected operation: {tool_name}")
+                console.print("[bold #FF6B6B]❌ Operation rejected[/bold #FF6B6B]\n")
+                return ApprovalStatus.REJECTED, None
+
+        except KeyboardInterrupt:
+            logger.info(f"User cancelled approval request: {tool_name}")
+            console.print("\n[bold #FF6B6B]❌ Operation cancelled[/bold #FF6B6B]\n")
+            return ApprovalStatus.REJECTED, None
 
     def get_pending_approvals(self) -> list[Dict[str, Any]]:
         """Get list of pending approvals"""

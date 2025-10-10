@@ -5,75 +5,135 @@ An intelligent Infrastructure as Code agent powered by **OpenAI-compatible model
 ## ✨ Features
 
 ### 🤖 AI & Multi-Agent Orchestration
-- **OpenAI-Compatible**: Works with OpenAI, Ollama, LocalAI, LM Studio, kimi, and more
+- **OpenAI-Compatible**: Works with OpenAI, Ollama, LocalAI, LM Studio, and any OpenAI-compatible endpoint
 - **DeepAgents Integration**: Multi-agent orchestration with 4 specialized sub-agents
-  - **Security Auditor**: Security analysis and compliance checking
-  - **Cost Optimizer**: Cost optimization and resource sizing
+  - **Security Auditor**: Security analysis and compliance checking (CIS, NIST, SOC2, GDPR)
+  - **Cost Optimizer**: Cost optimization and resource sizing recommendations
   - **Deployment Validator**: Deployment validation and testing
-  - **Migration Planner**: Infrastructure migration planning
-- **Intelligent Workflow Coordination**: 5 pre-built workflow templates
-- **Human-in-the-Loop**: Critical operations require human approval
+  - **Migration Planner**: Infrastructure migration planning and execution
+- **Intelligent Workflow Coordination**: Pre-built workflow templates for common IaC tasks
+- **Human-in-the-Loop**: Critical operations require human approval (configurable)
 - **Context-Aware**: Maintains conversation memory and understands follow-ups
 - **Natural Language Processing**: Handles questions in plain English
 
 ### 🏗️ Terraform Operations
 - **Infrastructure Analysis**: Parse and analyze complex Terraform configurations
 - **Resource Discovery**: Identify and categorize all infrastructure resources
-- **Terraform Execution**: Run plan, apply, validate, init, destroy
+- **Terraform Execution**: Run plan, apply, validate, init, destroy with async operations
 - **State Management**: Query and analyze Terraform state
 - **Multi-file Support**: Handle large-scale Terraform projects
 - **Real-time Execution**: Async operations with progress tracking
 
 ### 🎨 Professional Terminal UI
-- **Rich Interface**: Beautiful colors, tables, and panels
-- **Progress Indicators**: Animated spinners and status updates
-- **Token Analytics**: Track usage and costs in real-time
+- **Rich Interface**: Beautiful colors, tables, and panels powered by Rich library
+- **Progress Indicators**: Animated spinners and real-time status updates
 - **Session Management**: Export/import conversations
 - **Enhanced Help**: Colorized commands and examples
+- **Interactive Prompts**: Smart command completion and history
 
 ### 🔒 Production-Ready Features
 - **🔐 Security**: Input sanitization, command injection prevention
 - **🔄 Retry Logic**: Automatic retry with exponential backoff
-- **📊 Monitoring**: Token tracking, operation logging, performance metrics
+- **📊 Monitoring**: Operation logging, performance metrics
 - **✅ Validation**: Configuration validation, input validation, type safety
 - **🛡️ Error Handling**: Comprehensive error handling with graceful degradation
 - **💾 Session Management**: Export/import conversations for audit trails
 
-## 🚀 Quick Start
+## ⚡ TL;DR - Quick Setup
+
+```bash
+# 1. Clone and navigate
+git clone <repository-url>
+cd dzp
+
+# 2. Install dependencies and package
+uv sync --dev
+uv pip install -e .
+
+# 3. Make globally available
+echo 'export PATH="'$(pwd)'/.venv/bin:$PATH"' >> ~/.zshrc  # or ~/.bashrc
+source ~/.zshrc
+
+# 4. Configure
+cp .env.example .env
+# Edit .env with your API keys
+
+# 5. Run from anywhere!
+dzp
+```
+
+## 🚀 Installation Guide
 
 ### Prerequisites
 
-- Python 3.11+
-- OpenAI API key OR OpenAI-compatible endpoint (Ollama, LocalAI, kimi, etc.)
-- Terraform CLI installed
-- uv package manager (recommended) - Install with: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- **Python 3.11+** - Required for modern async features
+- **Terraform CLI** - Install from https://terraform.io/downloads
+- **uv package manager** (recommended) - Install with: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- **API Key** - One of:
+  - OpenAI API key from https://platform.openai.com/api-keys
+  - OR local endpoint (Ollama, LocalAI, LM Studio) - No API key needed
 
-### Installation
+### Step-by-Step Installation
 
-1. **Clone the repository**
+**1. Clone the repository**
 ```bash
 git clone <repository-url>
 cd dzp
 ```
 
-2. **Install with uv (recommended)**
+**2. Install dependencies**
+
+Using uv (recommended):
 ```bash
 uv sync --dev
 ```
 
-*Or use the Makefile:*
+Or using make:
 ```bash
 make setup-dev  # One-time setup with all dependencies
 ```
 
-*Alternative: Using pip*
+Or using pip:
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -e .
 ```
 
-3. **Configure environment variables**
+**3. Install as global command**
+
+After installing dependencies, install the package in editable mode:
+```bash
+uv pip install -e .
+```
+
+This creates three executable commands: `dzp`, `tf-agent`, and `dzp-agent`.
+
+**4. Make `dzp` globally available** (choose one option):
+
+**Option A: Add to PATH (Recommended)**
+```bash
+# For zsh users (macOS default)
+echo 'export PATH="'$(pwd)'/.venv/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+
+# For bash users
+echo 'export PATH="'$(pwd)'/.venv/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Option B: Create system-wide symlink**
+```bash
+sudo ln -sf $(pwd)/.venv/bin/dzp /usr/local/bin/dzp
+```
+
+**Option C: Activate virtual environment**
+```bash
+source .venv/bin/activate
+# Now dzp, tf-agent, and dzp-agent are available
+```
+
+**5. Configure environment**
 ```bash
 cp .env.example .env
 # Edit .env with your configuration
@@ -81,59 +141,102 @@ cp .env.example .env
 
 ### Configuration
 
-Create a `.env` file with your configuration:
+Create a `.env` file with your configuration. Here's a comprehensive example:
 
 ```env
+# ===========================================
 # AI Configuration
-AI_PROVIDER=openai_compatible  # Options: openai, openai_compatible
+# ===========================================
+# Supported providers: openai, openai_compatible
+AI_PROVIDER=openai_compatible
 
-# OpenAI Configuration
-OPENAI_API_KEY=your_api_key_here
+# OpenAI Configuration (if using OpenAI)
+OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_MODEL=gpt-4o
 OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MAX_TOKENS=4096
 
-# OpenAI Compatible (Ollama, LocalAI, kimi, etc.)
-OPENAI_COMPATIBLE_BASE_URL=http://localhost:11434/v1
+# OpenAI Compatible Endpoints (Ollama, LocalAI, LM Studio, etc.)
+# API key may not be required for local endpoints
+OPENAI_COMPATIBLE_API_KEY=
 OPENAI_COMPATIBLE_MODEL=llama3.1
+OPENAI_COMPATIBLE_BASE_URL=http://localhost:11434/v1
 OPENAI_COMPATIBLE_MAX_TOKENS=4096
 
+# ===========================================
 # DeepAgents Configuration
-USE_DEEPAGENTS=false  # Set to true to enable multi-agent orchestration
-HUMAN_IN_THE_LOOP=true  # Require approval for critical operations
+# ===========================================
+# Enable multi-agent orchestration for complex workflows
+USE_DEEPAGENTS=false
+# Require human approval for critical operations (apply, destroy)
+HUMAN_IN_THE_LOOP=true
 
+# ===========================================
 # Terraform Configuration
+# ===========================================
 TERRAFORM_PATH=terraform
+TERRAFORM_WORKSPACE=default
+# Absolute path to your Terraform infrastructure directory
 TERRAFORM_DIR=/absolute/path/to/terraform/files
 
+# ===========================================
 # Application Configuration
+# ===========================================
 LOG_LEVEL=INFO
+LOG_FILE=
+MAX_FILE_SIZE=10485760  # 10MB
+
+# ===========================================
+# UI Configuration
+# ===========================================
+UI_THEME=dark
+AUTO_REFRESH=true
+REFRESH_INTERVAL=30
 ```
 
 ## 🎯 Usage
 
-### Start the Agent
+### Starting the Agent
 
-**With uv (recommended):**
+**Using the global command:**
 ```bash
+dzp
+```
+
+That's it! Just run `dzp` from anywhere on your system.
+
+**Alternative commands:**
+```bash
+tf-agent   # Alternative command name
+dzp-agent  # Alternative command name
+```
+
+**Other ways to run:**
+
+```bash
+# With uv
 uv run main.py
-```
 
-**Or use the Makefile:**
-```bash
+# With Makefile
 make run
-```
 
-**Or use the installed script:**
-```bash
-uv run tf-agent
-```
-
-*Alternative (pip):*
-```bash
+# With Python directly
 python main.py
 ```
 
-### Example Commands
+### Available Console Commands
+
+The package provides three executable commands after installation:
+
+| Command | Description |
+|---------|-------------|
+| `dzp` | **Main entry point** - Recommended command to run the agent |
+| `tf-agent` | Alternative command name for Terraform Agent |
+| `dzp-agent` | Alternative command name for DZP IAC Agent |
+
+All three commands launch the same application. Use whichever you prefer!
+
+### Example Conversations
 
 #### Infrastructure Queries
 ```
@@ -149,6 +252,7 @@ python main.py
 > Validate the configuration
 > Show terraform state
 > Are these resources deployed?
+> Initialize terraform
 ```
 
 #### 🧠 Intelligent Follow-up Conversations
@@ -157,7 +261,7 @@ python main.py
 > terraform plan
 ✅ Terraform Plan Successful - 10 resources to add
 
-# Ask any follow-up question - the agent understands context!
+# Ask follow-up questions - the agent understands context!
 > What resources will be created?
 🏗️ Resources to be Created: Resource Groups, VMs, Networks, Storage...
 
@@ -171,17 +275,17 @@ python main.py
 🔒 Security Analysis: NSG allows SSH (port 22), HTTP (80), HTTPS (443)
 ```
 
-#### Advanced Queries (Extended Thinking)
+#### Advanced Queries with DeepAgents
 ```
 > Should I migrate from VMs to Kubernetes?
 > Analyze the security implications of this setup
 > What's the best way to optimize costs?
 > Compare these two infrastructure approaches
+> Plan a migration from AWS to Azure
 ```
 
 #### Utility Commands
 ```
-> tokens          # Show token usage and costs
 > status          # Show session statistics
 > export my_session.json   # Export conversation
 > import my_session.json   # Import conversation
@@ -192,230 +296,94 @@ python main.py
 
 ## 🏗️ Architecture
 
-### Core Components
-
-```
-src/
-├── ai/
-│   └── claude_processor.py      # Claude native tool use integration
-├── core/
-│   ├── agent.py                 # Main business logic & tool handlers
-│   ├── config.py                # Configuration management
-│   ├── logger.py                # Logging system
-│   └── task_engine.py           # Task execution engine
-├── terraform/
-│   ├── parser.py                # HCL/Terraform parsing
-│   └── cli.py                   # Terraform CLI operations
-└── ui/
-    └── enhanced_cli.py          # Professional terminal UI
-```
-
 ### Technology Stack
 
-- **AI**: Anthropic Claude 3.5 Sonnet
-- **Tool Use**: Native Claude function calling
-- **UI**: Rich terminal library
-- **Parser**: Python-HCL2 for Terraform
-- **Async**: AsyncIO for concurrent operations
+- **AI Models**: OpenAI, Ollama, LocalAI, LM Studio, or any OpenAI-compatible endpoint
+- **Multi-Agent**: DeepAgents for orchestration with specialized sub-agents
+- **Function Calling**: LangChain tool integration for structured interactions
+- **UI**: Rich terminal library for beautiful CLI experience
+- **Parser**: Python-HCL2 for Terraform configuration parsing
+- **Async**: AsyncIO for concurrent operations and real-time updates
 
-### Claude Tools (8 Total)
-
-1. **execute_terraform_plan** - Execute terraform plan
-2. **execute_terraform_apply** - Apply infrastructure changes
-3. **execute_terraform_validate** - Validate configuration
-4. **execute_terraform_init** - Initialize Terraform
-5. **execute_terraform_destroy** - Destroy resources
-6. **get_resources** - Query resource information
-7. **analyze_infrastructure** - Analyze configuration
-8. **get_terraform_state** - Check deployment state
-
-## 🧠 Natural Language Processing
-
-### LLM-Powered Follow-up Intelligence
-
-Unlike traditional chatbots that use brittle regex patterns, DZP IAC Agent leverages Claude's semantic understanding:
-
-**❌ Traditional Approach (Brittle):**
-```python
-# Fails with different phrasing!
-patterns = {
-    r"what resources": "handle_resources",
-    r"list resources": "handle_resources",
-    r"show resources": "handle_resources"
-}
-```
-
-**✅ Our Approach (Intelligent):**
-```python
-# Claude understands any phrasing naturally!
-"What resources will be created?"  ✅
-"Which infrastructure gets deployed?" ✅
-"Tell me about the resources" ✅
-"What will be provisioned?" ✅
-```
-
-### Context-Aware Conversations
-
-The agent maintains full context of your conversation:
-- **Previous Commands**: Remembers last terraform operations
-- **Results History**: Keeps plan summaries and outputs
-- **Conversation Flow**: Understands follow-up relationships
-- **Semantic Context**: Uses Claude to interpret meaning, not just patterns
-
-## 📊 Advanced Features
-
-### Extended Thinking
-
-Automatic deep reasoning for complex queries:
-
-```
-> Analyze the security implications and recommend improvements
-
-🧠 Using extended thinking mode for complex analysis...
-
-[Claude internally reasons through security concerns]
-
-🔒 Security Analysis:
-[Detailed security review with recommendations]
-```
-
-### Token Usage Tracking
-
-Monitor costs and optimize usage:
-
-```
-> tokens
-
-╭─────────────── 💰 Token Usage & Cost Analysis ───────────────╮
-│ Total Input Tokens            │          12,450 │
-│ Total Output Tokens           │           3,287 │
-│ Cache Read Tokens             │          11,200 │ ✅ 90% savings
-│ Estimated Total Cost          │        $0.0892 │
-╰───────────────────────────────┴─────────────────╯
-```
-
-### Vision Support
-
-Analyze infrastructure diagrams:
-
-```python
-# Programmatic usage
-response = await processor.process_with_image(
-    query="Analyze this architecture diagram",
-    image_path="./diagrams/infrastructure.png"
-)
-```
-
-### Batch Processing
-
-Process multiple queries efficiently:
-
-```python
-results = await processor.batch_process_queries([
-    "List all public resources",
-    "Show unencrypted storage",
-    "Find resources without tags"
-])
-```
-
-### Conversation Persistence
-
-Save and restore sessions:
-
-```
-> export terraform-review-2024.json
-✅ Conversation exported
-
-> import terraform-review-2024.json
-✅ Conversation imported
-```
-
-## 📚 Documentation
-
-- **[CHEATSHEET.md](docs/CHEATSHEET.md)** - 🎯 Quick reference with example prompts and queries
-- **[CLAUDE_INTEGRATION.md](docs/CLAUDE_INTEGRATION.md)** - Setup, tools, and architecture
-- **[ADVANCED_FEATURES.md](docs/ADVANCED_FEATURES.md)** - Extended thinking, streaming, vision, etc.
-
-## 💰 Cost Efficiency
-
-### Prompt Caching Benefits
-
-**Without Caching:**
-```
-10 queries × 2000 tokens = 20,000 tokens
-Cost: ~$0.36
-```
-
-**With Caching:**
-```
-First query: 2000 tokens (cache creation)
-9 queries × 200 tokens = 1,800 tokens (cache hits)
-Total: 3,800 tokens
-Cost: ~$0.08
-Savings: 78%
-```
-
-## 🎯 Example Session
-
-```
-🤖 DZP IAC Agent
-
-📋 Project Overview
-• Resources: 8
-• Variables: 12
-• Outputs: 3
-
-> How many VMs are defined?
-
-🖥️ Virtual Machine Resources: Found 4 VMs:
-1. ops-vm - Operations workload
-2. web-vm - Web server
-3. db-vm - Database server
-4. app-vm - Application server
-
-> Run terraform plan
-
-🔧 Executing terraform plan...
-
-✅ Terraform Plan Successful
-• ➕ Resources to add: 8
-• 🔄 Resources to change: 0
-• 🗑️ Resources to destroy: 0
-
-> Should I add monitoring to these VMs?
-
-🧠 Using extended thinking mode...
-
-💡 Monitoring Recommendations:
-[Detailed analysis and specific recommendations]
-
-> tokens
-
-Total cost this session: $0.0234
-Cache savings: 87%
-```
-
-## 🔧 Development
-
-### Project Structure
+### Core Components
 
 ```
 dzp/
 ├── main.py                      # Application entry point
-├── pyproject.toml               # Project configuration and dependencies
-├── uv.lock                      # Locked dependency versions
-├── .env.example                 # Environment template
-├── README.md                    # This file
-├── docs/
-│   ├── CHEATSHEET.md            # Quick reference guide
-│   └── FUTURE_ENHANCEMENTS.md   # Future improvements
-├── src/                         # Source code
-│   ├── ai/                      # Claude processor
-│   ├── core/                    # Business logic
-│   ├── terraform/               # Terraform integration
-│   └── ui/                      # Terminal UI
-└── examples/                    # Sample Terraform files
+├── src/
+│   ├── ai/
+│   │   ├── model_factory.py     # AI model factory (OpenAI/Compatible)
+│   │   ├── enhanced_processor.py # Enhanced AI processor
+│   │   ├── openai_processor.py  # OpenAI compatible processor
+│   │   └── deepagents_processor.py # DeepAgents multi-agent orchestration
+│   ├── core/
+│   │   ├── agent.py             # Main business logic & tool handlers
+│   │   ├── config.py            # Configuration management
+│   │   ├── logger.py            # Logging system
+│   │   ├── task_engine.py       # Task execution engine
+│   │   ├── workflows.py         # Workflow templates
+│   │   └── human_in_the_loop.py # Human approval system
+│   ├── terraform/
+│   │   ├── parser.py            # HCL/Terraform parsing
+│   │   └── cli.py               # Terraform CLI operations
+│   └── ui/
+│       └── enhanced_cli.py      # Professional terminal UI
+└── docs/
+    ├── CHEATSHEET.md            # Quick reference guide
+    └── CODE_EXPLANATION.md      # Code architecture documentation
 ```
+
+### AI Tools (8 Total)
+
+The agent provides 8 specialized tools for Terraform operations:
+
+1. **execute_terraform_plan** - Execute terraform plan to preview changes
+2. **execute_terraform_apply** - Apply infrastructure changes
+3. **execute_terraform_validate** - Validate Terraform configuration
+4. **execute_terraform_init** - Initialize Terraform working directory
+5. **execute_terraform_destroy** - Destroy managed infrastructure
+6. **get_resources** - Query and analyze resource information
+7. **analyze_infrastructure** - Deep analysis of infrastructure configuration
+8. **get_terraform_state** - Check current deployment state
+
+### DeepAgents Sub-Agents (4 Specialized Agents)
+
+When `USE_DEEPAGENTS=true`, you get access to specialized sub-agents:
+
+1. **Security Auditor**
+   - Security vulnerability analysis
+   - Compliance checking (CIS, NIST, SOC2, GDPR)
+   - Network security review
+   - IAM and access control analysis
+   - Encryption and data protection review
+
+2. **Cost Optimizer**
+   - Resource sizing recommendations
+   - Cost estimation and forecasting
+   - Unused resource identification
+   - Reserved instances and spot instance suggestions
+   - Multi-cloud cost comparison
+
+3. **Deployment Validator**
+   - Pre-deployment validation
+   - Post-deployment testing
+   - Health check configuration
+   - Rollback strategy planning
+   - Integration testing
+
+4. **Migration Planner**
+   - Migration strategy development
+   - Risk assessment and mitigation
+   - Dependency mapping
+   - Phased migration planning
+   - Cross-cloud migration support
+
+## 📚 Documentation
+
+- **[CHEATSHEET.md](docs/CHEATSHEET.md)** - 🎯 Quick reference with example prompts and queries
+- **[CODE_EXPLANATION.md](docs/CODE_EXPLANATION.md)** - 🏗️ Architecture and code organization
+
+## 🔧 Development
 
 ### Development Commands
 
@@ -452,63 +420,103 @@ make setup-dev
 
 ### Best Practices
 
-- **Clean Architecture**: Separation of concerns
-- **Modern Python**: Type hints, async/await
-- **Error Handling**: Graceful fallbacks
-- **Comprehensive Logging**: Structured logging
-- **Token Efficiency**: Prompt caching enabled
+- **Clean Architecture**: Separation of concerns with modular design
+- **Modern Python**: Type hints, async/await, Pydantic validation
+- **Error Handling**: Comprehensive error handling with graceful fallbacks
+- **Logging**: Structured logging with configurable levels
 - **Tool Safety**: Destructive operations require confirmation
+- **Testable**: Modular design enables easy unit testing
 
 ## 🐛 Troubleshooting
 
+### Command Not Found: `dzp`
+If you get "command not found: dzp" after installation:
+
+1. **Verify installation:**
+   ```bash
+   ls -la .venv/bin/dzp
+   ```
+
+2. **Check if PATH is updated:**
+   ```bash
+   echo $PATH | grep dzp
+   ```
+
+3. **Reload your shell configuration:**
+   ```bash
+   source ~/.zshrc  # or source ~/.bashrc
+   ```
+
+4. **Or open a new terminal window** - The PATH is loaded automatically in new terminals
+
+5. **Alternative:** Run directly with full path:
+   ```bash
+   /path/to/dzp/.venv/bin/dzp
+   ```
+
 ### API Key Issues
-- Ensure `.env` file has valid `ANTHROPIC_API_KEY`
-- Check key at https://console.anthropic.com
-- Verify API key has proper permissions
+- Ensure `.env` file has valid `OPENAI_API_KEY` (if using OpenAI)
+- For local endpoints (Ollama, LocalAI), API key is usually not required
+- Check provider-specific documentation for API key requirements
+- Verify API key has proper permissions and is not expired
 
 ### Terraform Not Found
 - Install Terraform CLI: https://terraform.io/downloads
-- Set `TERRAFORM_PATH` in `.env` if not in PATH
-- Verify: `terraform version`
+- Set `TERRAFORM_PATH` in `.env` if not in system PATH
+- Verify installation: `terraform version`
+- Ensure Terraform binary is executable
 
-### Token Usage High
-- Check `tokens` command for breakdown
-- Extended thinking uses more tokens (worth it!)
-- Prompt caching reduces costs by 90%
+### Configuration Issues
+- Set correct `TERRAFORM_DIR` in `.env` to point to your Terraform files
+- Must be an absolute path to directory containing `.tf` files
+- Example: `TERRAFORM_DIR=/Users/username/projects/terraform`
+- Ensure directory exists and contains valid Terraform configuration
 
-### No Terraform Files Found
-- Set correct `TERRAFORM_DIR` in `.env`
-- Point to directory containing `.tf` files
-- Example: `TERRAFORM_DIR=./examples/sample-terraform`
+### Installation Issues
+If `uv pip install -e .` fails:
+- Ensure you're in the project directory
+- Try: `uv sync --dev` first
+- Check Python version: `python --version` (must be 3.11+)
+- Reinstall uv: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- On macOS, ensure Xcode Command Line Tools are installed: `xcode-select --install`
+
+### DeepAgents Not Working
+If DeepAgents features aren't working:
+- Verify `USE_DEEPAGENTS=true` in `.env`
+- Check that `deepagents>=0.0.11` is installed: `pip show deepagents`
+- Review logs for initialization errors
+- Ensure AI model supports function calling (required for DeepAgents)
 
 ## 📈 Performance
 
-- **Startup Time**: ~1 second
-- **Query Response**: 1-3 seconds (cached)
-- **Terraform Plan**: 3-5 seconds
-- **Extended Thinking**: 5-10 seconds (complex queries)
-- **Streaming**: Real-time (80% faster perceived time)
+- **Startup Time**: ~1-2 seconds
+- **Query Response**: 1-3 seconds for standard queries
+- **Terraform Plan**: 3-5 seconds (depends on infrastructure size)
+- **DeepAgents**: 5-15 seconds for complex multi-agent workflows
+- **Async Operations**: Non-blocking with real-time progress updates
 
 ## 🌟 Key Advantages
 
-### vs LangChain/RAG Approaches
+### vs Traditional IaC Tools
 
-| Feature | Claude Native | LangChain/RAG |
-|---------|--------------|---------------|
-| **Setup** | Simple (1 API key) | Complex (multiple services) |
-| **Reliability** | High (native tools) | Variable (framework overhead) |
-| **Cost** | Low (prompt caching) | Higher (no caching) |
-| **Speed** | Fast (direct API) | Slower (RAG pipeline) |
-| **Maintenance** | Easy | Complex dependencies |
-| **Tool Use** | Native & reliable | Function calling (less reliable) |
+| Feature | DZP IAC Agent | Traditional CLI |
+|---------|---------------|-----------------|
+| **Interface** | Natural language | Command syntax |
+| **Learning Curve** | Minimal | Steep |
+| **Multi-Agent** | ✅ Built-in | ❌ Not available |
+| **Security Analysis** | ✅ Automated | ⚠️ Manual review |
+| **Cost Optimization** | ✅ AI-powered | ⚠️ Manual analysis |
+| **Context Awareness** | ✅ Conversation memory | ❌ Stateless |
+| **Human-in-Loop** | ✅ Configurable | ⚠️ Manual gates |
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Follow existing code style
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Follow existing code style and conventions
 4. Add tests for new functionality
-5. Submit a pull request
+5. Run linting and tests: `make lint && make test`
+6. Submit a pull request with clear description
 
 ## 📄 License
 
@@ -516,23 +524,25 @@ MIT License - see LICENSE file for details
 
 ## 🙏 Acknowledgments
 
-- **Anthropic** for Claude AI and advanced SDK features
+- **OpenAI** for GPT models and API
+- **DeepAgents** for multi-agent orchestration framework
 - **HashiCorp** for Terraform
 - **Rich** for beautiful terminal UI
+- **LangChain** for AI framework and tool integration
 
 ---
 
 ## 🎯 Project Status: ✅ PRODUCTION READY
 
-**Branch**: `feature/claude-native-tool-use`
-
-This is a complete, production-ready Infrastructure as Code automation agent powered by Claude AI with:
-- ✅ Native tool use integration
-- ✅ Advanced features (thinking, streaming, vision)
-- ✅ Cost-optimized with prompt caching
-- ✅ Comprehensive token tracking
+This is a complete, production-ready Infrastructure as Code automation agent with:
+- ✅ OpenAI-compatible AI integration
+- ✅ Multi-agent orchestration with DeepAgents
+- ✅ 8 specialized Terraform tools
+- ✅ 4 expert sub-agents for IaC workflows
+- ✅ Human-in-the-loop safety controls
 - ✅ Professional terminal UI
 - ✅ Clean, maintainable codebase
-- ✅ Complete documentation
+- ✅ Comprehensive documentation
+- ✅ Global command installation
 
-**DZP IAC Agent** - Built with Claude AI for intelligent infrastructure automation.
+**DZP IAC Agent** - Built with AI for intelligent infrastructure automation.

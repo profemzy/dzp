@@ -95,7 +95,7 @@ class EnhancedCLI:
         welcome_text = """
 [bold #00D4AA]🤖 DZP IAC Agent[/bold #00D4AA]
 
-[dim]Intelligent infrastructure automation powered by Claude AI[/dim]
+[dim]Intelligent infrastructure automation powered by AI[/dim]
 
 [bold]What I can do:[/bold]
 • 💬 Answer questions about your infrastructure in plain English
@@ -267,7 +267,7 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
         processor_names = [proc["name"] for proc in available_processors]
         active_processor = agent_status.get("deepagents_available", False)
         
-        processor_status = "✅ DeepAgents" if active_processor else "✅ Claude Native"
+        processor_status = "✅ DeepAgents" if active_processor else "✅ OpenAI Compatible"
         processor_color = "#00D4AA" if active_processor else "#4ECDC4"
         
         table.add_row(
@@ -401,8 +401,8 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
 [dim]Commands Processed:[/dim] [bold]{len(conversation_history) // 2}[/bold]
 [dim]Conversation History:[/dim] [bold]{len(conversation_history)} messages[/bold]
 
-[dim]AI Engine:[/dim] [#4ECDC4]Claude AI (Native Tool Use)[/#4ECDC4]
-[dim]Model:[/dim] [#95E77E]Claude 3.5 Sonnet[/#95E77E]
+[dim]AI Engine:[/dim] [#4ECDC4]OpenAI Compatible[/#4ECDC4]
+[dim]Features:[/dim] [#95E77E]Multi-Agent Orchestration[/#95E77E]
 [dim]Memory:[/dim] [#6C63FF]Conversation Context Active[/#6C63FF]
         """
 

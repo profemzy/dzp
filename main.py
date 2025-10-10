@@ -221,8 +221,8 @@ class TerraformAgentApp:
         self.agent.stop()
 
 
-async def main():
-    """Main function"""
+async def async_main():
+    """Async main function"""
     try:
         app = TerraformAgentApp()
         await app.run()
@@ -232,16 +232,21 @@ async def main():
         sys.exit(1)
 
 
-if __name__ == "__main__":
+def main():
+    """Main entry point for console script"""
     try:
         # Try to get the running event loop
         loop = asyncio.get_running_loop()
     except RuntimeError:
         # No event loop is running, use asyncio.run()
-        asyncio.run(main())
+        asyncio.run(async_main())
     else:
         # Event loop is already running, schedule the coroutine
         import nest_asyncio
 
         nest_asyncio.apply()
-        asyncio.run(main())
+        asyncio.run(async_main())
+
+
+if __name__ == "__main__":
+    main()
