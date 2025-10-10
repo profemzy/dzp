@@ -1,18 +1,20 @@
 # 🤖 DZP IAC Agent
 
-An intelligent Infrastructure as Code agent powered by **Claude AI** with **native tool use** for Terraform automation. Features advanced capabilities like extended thinking, streaming responses, token tracking, and vision support.
+An intelligent Infrastructure as Code agent powered by **OpenAI-compatible models** and **DeepAgents multi-agent orchestration** for Terraform automation. Features production-ready reliability, comprehensive security, and intelligent workflow coordination.
 
 ## ✨ Features
 
-### 🧠 Claude AI Native Tool Use
-- **Direct Claude Integration**: Native tool use without middleware frameworks
-- **Extended Thinking**: Deep reasoning for complex infrastructure decisions
-- **Streaming Responses**: Real-time response delivery for better UX
-- **8 Terraform Tools**: Plan, apply, validate, init, destroy, and more
-- **🧠 Intelligent Follow-up Questions**: LLM-powered semantic understanding - no brittle patterns!
+### 🤖 AI & Multi-Agent Orchestration
+- **OpenAI-Compatible**: Works with OpenAI, Ollama, LocalAI, LM Studio, kimi, and more
+- **DeepAgents Integration**: Multi-agent orchestration with 4 specialized sub-agents
+  - **Security Auditor**: Security analysis and compliance checking
+  - **Cost Optimizer**: Cost optimization and resource sizing
+  - **Deployment Validator**: Deployment validation and testing
+  - **Migration Planner**: Infrastructure migration planning
+- **Intelligent Workflow Coordination**: 5 pre-built workflow templates
+- **Human-in-the-Loop**: Critical operations require human approval
 - **Context-Aware**: Maintains conversation memory and understands follow-ups
-- **Natural Language Processing**: Handles any way of phrasing questions in English
-- **Prompt Caching**: 90% token cost reduction through intelligent caching
+- **Natural Language Processing**: Handles questions in plain English
 
 ### 🏗️ Terraform Operations
 - **Infrastructure Analysis**: Parse and analyze complex Terraform configurations
@@ -29,20 +31,20 @@ An intelligent Infrastructure as Code agent powered by **Claude AI** with **nati
 - **Session Management**: Export/import conversations
 - **Enhanced Help**: Colorized commands and examples
 
-### 💡 Advanced Features
-- **🧠 Extended Thinking**: Automatic deep reasoning for complex queries
-- **🌊 Streaming**: Real-time response streaming
-- **💰 Token Tracking**: Comprehensive usage analytics and cost estimation
-- **👁️ Vision Support**: Analyze infrastructure diagrams and screenshots
-- **🔄 Batch Processing**: Process multiple queries concurrently
-- **💾 Conversation Persistence**: Export/import session history
+### 🔒 Production-Ready Features
+- **🔐 Security**: Input sanitization, command injection prevention
+- **🔄 Retry Logic**: Automatic retry with exponential backoff
+- **📊 Monitoring**: Token tracking, operation logging, performance metrics
+- **✅ Validation**: Configuration validation, input validation, type safety
+- **🛡️ Error Handling**: Comprehensive error handling with graceful degradation
+- **💾 Session Management**: Export/import conversations for audit trails
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Python 3.8+
-- Anthropic API key (get one at https://console.anthropic.com)
+- Python 3.11+
+- OpenAI API key OR OpenAI-compatible endpoint (Ollama, LocalAI, kimi, etc.)
 - Terraform CLI installed
 - uv package manager (recommended) - Install with: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 
@@ -74,7 +76,7 @@ pip install -e .
 3. **Configure environment variables**
 ```bash
 cp .env.example .env
-# Edit .env with your Anthropic API key
+# Edit .env with your configuration
 ```
 
 ### Configuration
@@ -82,14 +84,26 @@ cp .env.example .env
 Create a `.env` file with your configuration:
 
 ```env
-# Claude AI Configuration
-ANTHROPIC_API_KEY=sk-ant-your-api-key-here
-ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
-ANTHROPIC_MAX_TOKENS=4096
+# AI Configuration
+AI_PROVIDER=openai_compatible  # Options: openai, openai_compatible
+
+# OpenAI Configuration
+OPENAI_API_KEY=your_api_key_here
+OPENAI_MODEL=gpt-4o
+OPENAI_BASE_URL=https://api.openai.com/v1
+
+# OpenAI Compatible (Ollama, LocalAI, kimi, etc.)
+OPENAI_COMPATIBLE_BASE_URL=http://localhost:11434/v1
+OPENAI_COMPATIBLE_MODEL=llama3.1
+OPENAI_COMPATIBLE_MAX_TOKENS=4096
+
+# DeepAgents Configuration
+USE_DEEPAGENTS=false  # Set to true to enable multi-agent orchestration
+HUMAN_IN_THE_LOOP=true  # Require approval for critical operations
 
 # Terraform Configuration
 TERRAFORM_PATH=terraform
-TERRAFORM_DIR=./examples/sample-terraform
+TERRAFORM_DIR=/absolute/path/to/terraform/files
 
 # Application Configuration
 LOG_LEVEL=INFO

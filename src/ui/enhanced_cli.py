@@ -123,7 +123,7 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
         self.console.print(panel)
         self.console.print()
 
-    def show_project_overview(self, project_data: Dict[str, Any]):
+    def show_project_overview(self, project_data: Dict[str, Any], agent_status: Dict[str, Any] = None):
         """Show enhanced project information"""
         with Progress(
             SpinnerColumn(),
@@ -180,6 +180,10 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
 
                 self.console.print(panel)
 
+                # Show AI configuration status if available
+                if agent_status:
+                    self.show_ai_status(agent_status)
+
                 # Show resource breakdown if available
                 if resources.get("by_type"):
                     self.show_resource_breakdown(resources["by_type"])
@@ -216,6 +220,94 @@ Type [#4ECDC4]exit[/#4ECDC4] to quit
                 f"[bold]{count}[/bold]",
                 f"[{progress_color}]{progress_bar}[/{progress_color}] {percentage:.1f}%",
             )
+
+        self.console.print(table)
+        self.console.print()
+
+    def show_ai_status(self, agent_status: Dict[str, Any]):
+        """Show AI configuration and processor status"""
+        model_config = agent_status.get("model_config", {})
+        processor_info = agent_status.get("ai_processor", {})
+        
+        # Create AI status table
+        table = Table(
+            title="🧠 AI Configuration",
+            box=box.ROUNDED,
+            show_header=True,
+            title_style="#6C63FF"
+        )
+        table.add_column("Configuration", style="#00D4AA", width=25)
+        table.add_column("Value", style="#FFFFFF", width=30)
+        table.add_column("Status", width=15)
+
+        # Provider information
+        provider = model_config.get("provider", "Unknown")
+        model = model_config.get("model", "Unknown")
+        api_configured = model_config.get("api_configured", False)
+        
+        # Provider status color
+        provider_color = "#95E77E" if api_configured else "#FF6B6B"
+        provider_status = "✅ Connected" if api_configured else "❌ Not Configured"
+        
+        table.add_row(
+            "🤖 AI Provider",
+            f"[bold]{provider}[/bold]",
+            f"[{provider_color}]{provider_status}[/{provider_color}]"
+        )
+        
+        # Model information
+        table.add_row(
+            "🧠 Model",
+            model,
+            "[#95E77E]Active[/#95E77E]"
+        )
+        
+        # Available processors
+        available_processors = processor_info.get("available_processors", [])
+        processor_names = [proc["name"] for proc in available_processors]
+        active_processor = agent_status.get("deepagents_available", False)
+        
+        processor_status = "✅ DeepAgents" if active_processor else "✅ Claude Native"
+        processor_color = "#00D4AA" if active_processor else "#4ECDC4"
+        
+        table.add_row(
+            "⚙️  Processors",
+            f"{', '.join(processor_names)}",
+            f"[{processor_color}]{processor_status}[/{processor_color}]"
+        )
+        
+        # DeepAgents status
+        deepagents_available = agent_status.get("deepagents_available", False)
+        workflows_count = agent_status.get("workflows_available", 0)
+        
+        if deepagents_available:
+            da_status = f"✅ {workflows_count} workflows"
+            da_color = "#95E77E"
+        else:
+            da_status = "⚠️ Disabled"
+            da_color = "#FFD93D"
+        
+        table.add_row(
+            "🔀 DeepAgents",
+            "Multi-agent orchestration",
+            f"[{da_color}]{da_status}[/{da_color}]"
+        )
+        
+        # Human-in-the-Loop status
+        hil_enabled = agent_status.get("hil_status", {}).get("enabled", False)
+        
+        if hil_enabled:
+            hil_status = "✅ Enabled"
+            hil_color = "#95E77E"
+        else:
+            hil_status = "⚠️ Disabled"
+            hil_color = "#FFD93D"
+        
+        table.add_row(
+            "👤 Human-in-the-Loop",
+            "Approval workflows",
+            f"[{hil_color}]{hil_status}[/{hil_color}]"
+        )
 
         self.console.print(table)
         self.console.print()

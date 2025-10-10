@@ -1,6 +1,6 @@
-# 🤖 DZP IAC Agent - Prompt Cheatsheet
+# 🤖 DZP IAC Agent - Quick Reference Cheatsheet
 
-A quick reference guide for interacting with the DZP IAC Agent using natural language.
+A quick reference guide for interacting with the DZP IAC Agent using natural language with OpenAI-compatible models and DeepAgents multi-agent orchestration.
 
 ---
 
@@ -350,21 +350,31 @@ quit
 
 ---
 
-## 🧠 Advanced Queries (Extended Thinking)
+## 🧠 Advanced Queries (DeepAgents Multi-Agent)
 
-These queries automatically trigger Claude's extended thinking mode for deeper analysis:
+These queries leverage DeepAgents multi-agent orchestration for complex analysis:
 
 ```
-Analyze the security implications of this setup
-Compare this infrastructure with best practices
-Should I migrate to a different architecture?
-What are the risks of this configuration?
-Optimize this infrastructure for production
+Analyze the security implications of this setup (uses security-auditor sub-agent)
+Compare this infrastructure with best practices (uses cost-optimizer)
+Should I migrate to a different architecture? (uses migration-planner)
+What are the risks of this configuration? (uses security-auditor)
+Optimize this infrastructure for production (uses deployment-validator)
 Recommend improvements with reasoning
 What's the impact of adding X feature?
-Design a disaster recovery strategy
-How should I structure this for scalability?
-What dependencies will this create?
+Design a disaster recovery strategy (uses migration-planner)
+How should I structure this for scalability? (uses cost-optimizer)
+Validate my deployment plan (uses deployment-validator)
+```
+
+### DeepAgents Workflow Commands
+
+```
+Run a security audit workflow
+Execute a cost optimization analysis
+Validate my deployment
+Plan an infrastructure migration
+Create a disaster recovery plan
 ```
 
 ---
@@ -478,9 +488,8 @@ The agent understands variations and synonyms:
 ## 📖 Related Documentation
 
 - [README.md](../README.md) - Full project documentation
-- [CLAUDE_INTEGRATION.md](CLAUDE_INTEGRATION.md) - Claude AI integration details
-- [ADVANCED_FEATURES.md](ADVANCED_FEATURES.md) - Advanced features guide
+- [CODE_EXPLANATION.md](CODE_EXPLANATION.md) - Detailed code architecture
 
 ---
 
-**DZP IAC Agent** - Intelligent Infrastructure as Code automation powered by Claude AI
+**DZP IAC Agent** - Intelligent Infrastructure as Code automation powered by OpenAI-compatible models and DeepAgents

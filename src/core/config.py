@@ -5,22 +5,45 @@ Configuration management for Terraform AI Agent
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from src.core.logger import get_logger
 
 # Load environment variables from .env file
 load_dotenv()
 
+logger = get_logger(__name__)
+
 
 class Config(BaseModel):
-    """Application configuration"""
+    """Application configuration with validation"""
 
-    # Claude/Anthropic Configuration
+    # AI Provider Configuration
+    ai_provider: str = Field("openai_compatible", env="AI_PROVIDER")
+
+    # Claude/Anthropic Configuration (deprecated)
     anthropic_api_key: Optional[str] = Field(None, env="ANTHROPIC_API_KEY")
     anthropic_model: str = Field("claude-3-5-sonnet-20241022", env="ANTHROPIC_MODEL")
     anthropic_max_tokens: int = Field(4096, env="ANTHROPIC_MAX_TOKENS")
+
+    # OpenAI Configuration
+    openai_api_key: Optional[str] = Field(None, env="OPENAI_API_KEY")
+    openai_model: str = Field("gpt-4o", env="OPENAI_MODEL")
+    openai_base_url: str = Field("https://api.openai.com/v1", env="OPENAI_BASE_URL")
+    openai_max_tokens: int = Field(4096, env="OPENAI_MAX_TOKENS")
+
+    # OpenAI Compatible Configuration
+    openai_compatible_api_key: Optional[str] = Field(None, env="OPENAI_COMPATIBLE_API_KEY")
+    openai_compatible_model: str = Field("llama3.1", env="OPENAI_COMPATIBLE_MODEL")
+    openai_compatible_base_url: str = Field("http://localhost:11434/v1", env="OPENAI_COMPATIBLE_BASE_URL")
+    openai_compatible_max_tokens: int = Field(4096, env="OPENAI_COMPATIBLE_MAX_TOKENS")
+
+    # DeepAgents Configuration
+    use_deepagents: bool = Field(False, env="USE_DEEPAGENTS")
+    human_in_the_loop: bool = Field(True, env="HUMAN_IN_THE_LOOP")
 
     # Terraform Configuration
     terraform_path: str = Field("terraform", env="TERRAFORM_PATH")
@@ -42,15 +65,54 @@ class Config(BaseModel):
 
     class Config:
         env_file_encoding = "utf-8"
+    
+    @field_validator("ai_provider")
+    @classmethod
+    def validate_ai_provider(cls, v: str) -> str:
+        """Validate AI provider selection"""
+        valid_providers = ["openai", "openai_compatible"]
+        if v.lower() not in valid_providers:
+            logger.warning(f"Invalid AI provider '{v}'. Valid options: {valid_providers}. Defaulting to 'openai_compatible'")
+            return "openai_compatible"
+        return v.lower()
+    
+    @field_validator("log_level")
+    @classmethod
+    def validate_log_level(cls, v: str) -> str:
+        """Validate log level"""
+        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        if v.upper() not in valid_levels:
+            logger.warning(f"Invalid log level '{v}'. Defaulting to 'INFO'")
+            return "INFO"
+        return v.upper()
+    
+    @field_validator("terraform_path")
+    @classmethod
+    def validate_terraform_path(cls, v: str) -> str:
+        """Validate Terraform CLI path"""
+        if not shutil.which(v):
+            logger.warning(f"Terraform CLI not found at '{v}'. Please ensure Terraform is installed.")
+        return v
 
     def __init__(self, **data):
         # Explicitly read environment variables
         env_data = {
+            "ai_provider": os.getenv("AI_PROVIDER", "openai_compatible"),
             "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
             "anthropic_model": os.getenv(
                 "ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022"
             ),
             "anthropic_max_tokens": int(os.getenv("ANTHROPIC_MAX_TOKENS", "4096")),
+            "openai_api_key": os.getenv("OPENAI_API_KEY"),
+            "openai_model": os.getenv("OPENAI_MODEL", "gpt-4o"),
+            "openai_base_url": os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+            "openai_max_tokens": int(os.getenv("OPENAI_MAX_TOKENS", "4096")),
+            "openai_compatible_api_key": os.getenv("OPENAI_COMPATIBLE_API_KEY"),
+            "openai_compatible_model": os.getenv("OPENAI_COMPATIBLE_MODEL", "llama3.1"),
+            "openai_compatible_base_url": os.getenv("OPENAI_COMPATIBLE_BASE_URL", "http://localhost:11434/v1"),
+            "openai_compatible_max_tokens": int(os.getenv("OPENAI_COMPATIBLE_MAX_TOKENS", "4096")),
+            "use_deepagents": os.getenv("USE_DEEPAGENTS", "false").lower() == "true",
+            "human_in_the_loop": os.getenv("HUMAN_IN_THE_LOOP", "true").lower() == "true",
             "terraform_path": os.getenv("TERRAFORM_PATH", "terraform"),
             "terraform_workspace": os.getenv("TERRAFORM_WORKSPACE", "default"),
             "log_level": os.getenv("LOG_LEVEL", "INFO"),

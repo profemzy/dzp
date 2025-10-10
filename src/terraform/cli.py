@@ -47,12 +47,31 @@ class TerraformResult:
 
 
 class TerraformCLI:
-    """Interface to Terraform CLI"""
+    """Interface to Terraform CLI with security validations"""
 
     def __init__(self, terraform_path: str = "terraform", working_dir: str = "."):
         self.terraform_path = terraform_path
-        self.working_dir = Path(working_dir)
+        self.working_dir = Path(working_dir).resolve()  # Resolve to absolute path
         self._version_cache: Optional[str] = None
+        self._validate_working_dir()
+    
+    def _validate_working_dir(self) -> None:
+        """Validate that the working directory is safe"""
+        if not self.working_dir.exists():
+            logger.warning(f"Working directory does not exist: {self.working_dir}")
+        elif not self.working_dir.is_dir():
+            raise ValueError(f"Working directory is not a directory: {self.working_dir}")
+    
+    def _sanitize_input(self, value: str) -> str:
+        """Sanitize user input to prevent command injection"""
+        # Remove potentially dangerous characters
+        dangerous_chars = [";", "&", "|", "`", "$", "(", ")", "<", ">", "\n", "\r"]
+        sanitized = value
+        for char in dangerous_chars:
+            if char in sanitized:
+                logger.warning(f"Removing dangerous character '{char}' from input")
+                sanitized = sanitized.replace(char, "")
+        return sanitized
 
     async def _run_command(
         self,
