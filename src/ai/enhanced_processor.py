@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 from src.ai.openai_processor import OpenAIProcessor
 from src.ai.deepagents_processor import DeepAgentsProcessor
 from src.ai.model_factory import ModelFactory
+from src.ai.query_classifier import QueryClassifier
 from src.core.config import Config
 from src.core.logger import get_logger
 
@@ -21,7 +22,8 @@ class EnhancedAIProcessor:
         self.config = config
         self.openai_processor = None
         self.deepagents_processor = None
-        
+        self.query_classifier = QueryClassifier()
+
         # Initialize processors based on configuration
         self._initialize_processors()
 
@@ -98,33 +100,41 @@ class EnhancedAIProcessor:
         return info
 
     async def process_request(
-        self, 
-        request: str, 
+        self,
+        request: str,
         context: Optional[Dict[str, Any]] = None,
         stream_callback: Optional[callable] = None
     ) -> Dict[str, Any]:
         """
         Process a request using the appropriate processor
-        
+
         Args:
             request: The user's request
             context: Additional context (files, previous results, etc.)
             stream_callback: Callback for streaming responses (OpenAI-compatible models)
-            
+
         Returns:
             Processor response
         """
-        
-        # Choose the appropriate processor
-        if self.config.use_deepagents and self.deepagents_processor:
-            logger.info("Using DeepAgents processor for request")
+
+        # 🧠 INTELLIGENT ROUTING: Automatically decide which processor to use
+        should_use_deep, reasoning = self.query_classifier.should_use_deepagents(
+            request,
+            deepagents_available=self.deepagents_processor is not None
+        )
+
+        # Choose the appropriate processor based on query complexity
+        if should_use_deep and self.deepagents_processor:
+            logger.info(f"🤖 Using DeepAgents: {reasoning}")
+            logger.info(f"Query: {request[:100]}...")
             return await self.deepagents_processor.process_request(request, context)
-        
+
         elif self.openai_processor:
-            logger.info("Using OpenAI Compatible processor for request")
-            # Use OpenAI processor 
+            logger.info(f"⚡ Using standard processor: {reasoning}")
+            logger.info(f"Query: {request[:100]}...")
+            # Use OpenAI processor
             return await self.openai_processor.process_request(request, context)
-        
+
         else:
             error_msg = "No AI processor available. Check configuration."
             logger.error(error_msg)

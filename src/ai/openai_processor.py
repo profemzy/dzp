@@ -119,10 +119,15 @@ class OpenAIProcessor:
                 response = await self._invoke_model_with_retry(messages)
 
             # Update token usage
-            if hasattr(response, 'usage_metadata'):
+            if hasattr(response, 'usage_metadata') and response.usage_metadata:
                 usage = response.usage_metadata
-                self.total_input_tokens += usage.get('input_tokens', 0)
-                self.total_output_tokens += usage.get('output_tokens', 0)
+                # Handle both dict and object forms
+                if isinstance(usage, dict):
+                    self.total_input_tokens += usage.get('input_tokens', 0)
+                    self.total_output_tokens += usage.get('output_tokens', 0)
+                elif hasattr(usage, 'input_tokens'):
+                    self.total_input_tokens += getattr(usage, 'input_tokens', 0)
+                    self.total_output_tokens += getattr(usage, 'output_tokens', 0)
 
             # Add to conversation history
             self.conversation_history.append({"role": "user", "content": request})
