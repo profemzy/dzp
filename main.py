@@ -60,7 +60,8 @@ class TerraformAgentApp:
 
         # Show project information
         project_data = self.agent.get_project_data()
-        self.cli.show_project_overview(project_data)
+        agent_status = self.agent.get_enhanced_status()
+        self.cli.show_project_overview(project_data, agent_status)
 
         # Show initial help
         self.cli.show_initial_help()

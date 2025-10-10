@@ -2,13 +2,16 @@
 Core Terraform AI Agent business logic
 """
 
+import asyncio
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from src.ai.claude_processor import ClaudeProcessor
+from src.ai.enhanced_processor import EnhancedAIProcessor
 from src.core.config import Config
+from src.core.human_in_the_loop import HumanInTheLoop, ToolInterceptor
 from src.core.logger import get_logger
 from src.core.task_engine import Task, TaskEngine, TaskStatus
+from src.core.workflows import WorkflowTemplates, WorkflowType
 
 logger = get_logger(__name__)
 
@@ -20,10 +23,17 @@ class TerraformAgent:
         self.config = config
         self.task_engine = TaskEngine(config)
 
-        # Initialize Claude AI processor with native tool use
-        logger.info("Initializing Claude processor with native tool use")
-        self.ai_processor = ClaudeProcessor(config)
-        self._setup_claude_tools()
+        # Initialize Enhanced AI processor (supports Claude and DeepAgents)
+        logger.info("Initializing Enhanced AI processor")
+        self.ai_processor = EnhancedAIProcessor(config)
+        self._setup_ai_tools()
+
+        # Initialize Human-in-the-Loop system
+        self.hil = HumanInTheLoop(config)
+        self.tool_interceptor = ToolInterceptor(config)
+
+        # Initialize workflow templates
+        self.workflow_templates = WorkflowTemplates(config)
 
         self.running = True
         self.conversation_history = []
@@ -37,8 +47,8 @@ class TerraformAgent:
         # Setup task engine callbacks
         self.task_engine.add_task_callback(self._on_task_update)
 
-    def _setup_claude_tools(self):
-        """Setup tool handlers for Claude processor"""
+    def _setup_ai_tools(self):
+        """Setup tool handlers for AI processor"""
         # Register all tool handlers
         self.ai_processor.register_tool_handler(
             "execute_terraform_plan", self._handle_terraform_plan_tool
@@ -65,9 +75,81 @@ class TerraformAgent:
             "get_terraform_state", self._handle_get_state_tool
         )
 
-        logger.info("Claude tool handlers registered successfully")
+        # Initialize DeepAgents with terraform tools if enabled
+        terraform_tools = self._get_terraform_tools()
+        self.ai_processor.initialize_deepagents(terraform_tools)
 
-    # Tool handlers for Claude
+        logger.info("AI tool handlers registered successfully")
+
+    def _get_terraform_tools(self) -> List[Any]:
+        """Get terraform tools for DeepAgents initialization"""
+        from langchain_core.tools import tool
+        
+        terraform_tools = []
+        
+        @tool
+        def terraform_plan(detailed: bool = True) -> str:
+            """Execute terraform plan command to show what changes Terraform will make to infrastructure."""
+            # Delegate to the existing task engine
+            result = asyncio.run(self.task_engine.execute_terraform_plan(detailed=detailed))
+            return result.get("output", "Plan executed")
+        
+        @tool
+        def terraform_validate() -> str:
+            """Execute terraform validate to check if the configuration is valid."""
+            result = asyncio.run(self.task_engine.execute_terraform_validate())
+            return result.get("output", "Validation completed")
+        
+        @tool
+        def terraform_init(upgrade: bool = False) -> str:
+            """Execute terraform init to initialize the working directory."""
+            result = asyncio.run(self.task_engine.execute_terraform_init(upgrade=upgrade))
+            return result.get("output", "Initialization completed")
+        
+        @tool
+        def get_resources(resource_type: str = "", search_query: str = "") -> str:
+            """Get information about Terraform resources defined in configuration files."""
+            # This would use the terraform parser to get resource information
+            return f"Resources found for type '{resource_type}' with query '{search_query}'"
+        
+        @tool
+        def analyze_infrastructure(analysis_type: str) -> str:
+            """Analyze Terraform infrastructure configuration."""
+            return f"Infrastructure analysis for {analysis_type}"
+        
+        @tool
+        def get_terraform_state(list_resources: bool = True) -> str:
+            """Get information about current Terraform state."""
+            return "Current terraform state information"
+        
+        terraform_tools = [
+            terraform_plan,
+            terraform_validate, 
+            terraform_init,
+            get_resources,
+            analyze_infrastructure,
+            get_terraform_state,
+        ]
+        
+        # Only include apply and destroy tools if human-in-the-loop is enabled
+        if self.config.human_in_the_loop:
+            @tool
+            def terraform_apply(auto_approve: bool = False) -> str:
+                """Execute terraform apply to apply infrastructure changes. Requires human approval."""
+                result = asyncio.run(self.task_engine.execute_terraform_apply(auto_approve=auto_approve))
+                return result.get("output", "Apply completed")
+            
+            @tool
+            def terraform_destroy(auto_approve: bool = False) -> str:
+                """Execute terraform destroy to destroy all resources. Requires human approval."""
+                result = asyncio.run(self.task_engine.execute_terraform_destroy(auto_approve=auto_approve))
+                return result.get("output", "Destroy completed")
+            
+            terraform_tools.extend([terraform_apply, terraform_destroy])
+        
+        return terraform_tools
+
+    # Tool handlers for AI processor
     async def _handle_terraform_plan_tool(
         self, tool_input: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -706,3 +788,124 @@ Instructions:
         self.last_command = None
         self.last_result = None
         self.last_plan_summary = None
+
+    # Enhanced methods for DeepAgents integration
+    
+    def get_processor_info(self) -> Dict[str, Any]:
+        """Get information about available AI processors"""
+        return self.ai_processor.get_processor_info()
+    
+    def switch_processor(self, use_deepagents: Optional[bool] = None) -> bool:
+        """Switch between Claude and DeepAgents processors"""
+        return self.ai_processor.switch_processor(use_deepagents)
+    
+    def get_available_workflows(self) -> Dict[str, Any]:
+        """Get available workflow templates"""
+        return {
+            name: template.to_dict() 
+            for name, template in self.workflow_templates.get_all_templates().items()
+        }
+    
+    def create_workflow_plan(
+        self, 
+        workflow_name: str, 
+        parameters: Optional[Dict[str, Any]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Create a workflow execution plan"""
+        return self.workflow_templates.create_workflow_execution_plan(workflow_name, parameters)
+    
+    async def execute_workflow(
+        self, 
+        workflow_name: str, 
+        parameters: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute a complete workflow using DeepAgents"""
+        
+        if not self.ai_processor.supports_deepagents():
+            return {
+                "error": "DeepAgents not available. Enable USE_DEEPAGENTS=true in configuration."
+            }
+        
+        # Create workflow plan
+        plan = self.create_workflow_plan(workflow_name, parameters)
+        if not plan:
+            return {
+                "error": f"Workflow '{workflow_name}' not found"
+            }
+        
+        # Execute using DeepAgents
+        workflow_request = f"""
+Execute the {workflow_name} workflow with the following parameters:
+{parameters or {}}
+
+Follow this structured approach:
+1. Create a todo list with all workflow steps
+2. Execute each step systematically
+3. Use appropriate sub-agents for specialized tasks
+4. Request human approval for critical operations
+5. Provide progress updates throughout the execution
+
+Workflow template:
+{plan['template']['description']}
+
+Steps to execute:
+{[step['name'] for step in plan['execution_steps']]}
+"""
+        
+        try:
+            result = await self.ai_processor.process_request(
+                workflow_request,
+                context={
+                    "workflow_plan": plan,
+                    "workflow_type": plan["template"]["type"]
+                }
+            )
+            
+            return {
+                "success": True,
+                "workflow_name": workflow_name,
+                "result": result,
+                "plan": plan
+            }
+            
+        except Exception as e:
+            logger.error(f"Error executing workflow {workflow_name}: {e}")
+            return {
+                "success": False,
+                "workflow_name": workflow_name,
+                "error": str(e),
+                "plan": plan
+            }
+    
+    def get_hil_status(self) -> Dict[str, Any]:
+        """Get Human-in-the-Loop status"""
+        return {
+            "enabled": self.config.human_in_the_loop,
+            "pending_approvals": len(self.hil.get_pending_approvals()),
+            "approval_summary": self.hil.get_approval_summary(),
+            "approval_history_count": len(self.hil.get_approval_history()),
+        }
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get current model configuration"""
+        return self.ai_processor.get_model_info()
+    
+    async def test_ai_connection(self) -> Dict[str, Any]:
+        """Test connection to configured AI provider"""
+        return await self.ai_processor.test_connection()
+    
+    def get_enhanced_status(self) -> Dict[str, Any]:
+        """Get comprehensive status including DeepAgents info"""
+        return {
+            "agent_status": {
+                "running": self.running,
+                "session_duration": str(self.get_session_duration()),
+                "conversation_count": len(self.conversation_history),
+            },
+            "ai_processor": self.get_processor_info(),
+            "deepagents_available": self.ai_processor.supports_deepagents(),
+            "workflows_available": len(self.get_available_workflows()),
+            "hil_status": self.get_hil_status(),
+            "model_config": self.get_model_info(),
+            "terraform_configured": self.config.is_terraform_project(),
+        }

@@ -1,541 +1,555 @@
-# 🚀 DZP IAC Agent - Code Explanation for Beginners
+# 🚀 DZP IAC Agent - Code Architecture
 
-Welcome to the comprehensive code explanation for the DZP IAC Agent! This document is designed to help beginner programmers understand how this intelligent Infrastructure as Code agent works.
+Complete code architecture explanation for the DZP IAC Agent with OpenAI-compatible models and DeepAgents multi-agent orchestration.
 
 ## 📋 Table of Contents
 
-1. [What is this Application?](#what-is-this-application)
-2. [Project Structure Overview](#project-structure-overview)
-3. [Core Concepts Explained](#core-concepts-explained)
-4. [Step-by-Step Code Walkthrough](#step-by-step-code-walkthrough)
-5. [Key Programming Patterns](#key-programming-patterns)
-6. [How Everything Works Together](#how-everything-works-together)
-7. [Learning Takeaways](#learning-takeaways)
+1. [Application Overview](#application-overview)
+2. [Project Structure](#project-structure)
+3. [Core Components](#core-components)
+4. [AI Integration Layer](#ai-integration-layer)
+5. [Terraform Integration](#terraform-integration)
+6. [Security & Production Features](#security--production-features)
+7. [Configuration Management](#configuration-management)
 
 ---
 
-## What is this Application?
+## Application Overview
 
-The **DZP IAC Agent** is a smart assistant that helps you manage Terraform infrastructure using natural language. Instead of remembering complex Terraform commands, you can simply ask questions in plain English like:
+### What is DZP IAC Agent?
 
-- "How many resources are in this configuration?"
-- "Run terraform plan"
-- "Show me all virtual machines"
+DZP IAC Agent is an intelligent Terraform Infrastructure as Code assistant that:
+- Uses **natural language** to interact with Terraform
+- Supports **OpenAI-compatible models** (OpenAI, Ollama, LocalAI, kimi, etc.)
+- Leverages **DeepAgents** for complex multi-agent workflows
+- Provides **Human-in-the-Loop** approval for critical operations
+- Executes Terraform commands safely with input validation
 
-The application uses **Claude AI** (an advanced language model) to understand your questions and execute Terraform operations automatically.
+### Technology Stack
 
-### Real-World Analogy
-Think of this app like having a very smart DevOps assistant who:
-- Understands English perfectly
-- Knows everything about Terraform
-- Can execute commands for you
-- Shows beautiful results in the terminal
+- **Python 3.11+**: Modern async/await support
+- **LangChain**: AI model orchestration
+- **DeepAgents**: Multi-agent coordination
+- **Rich**: Beautiful terminal UI
+- **Pydantic**: Configuration validation
+- **Tenacity**: Retry logic for reliability
 
 ---
 
-## Project Structure Overview
+## Project Structure
 
 ```
 dzp/
-├── main.py                      # 🚪 Entry point - where the program starts
-├── pyproject.toml               # 📦 Project configuration and dependencies
-├── src/                         # 📁 Source code directory
-│   ├── ai/                      # 🤖 AI/ Claude integration
-│   │   └── claude_processor.py  # Handles communication with Claude AI
-│   ├── core/                    # ⚙️  Core business logic
-│   │   ├── agent.py             # Main agent logic (the "brain")
-│   │   ├── config.py            # Configuration management
-│   │   ├── logger.py            # Logging system
-│   │   └── task_engine.py       # Task execution engine
-│   ├── terraform/               # 🏗️  Terraform operations
-│   │   ├── cli.py               # Runs Terraform commands
-│   │   └── parser.py            # Parses Terraform files
-│   └── ui/                      # 🎨 User interface
-│       └── enhanced_cli.py      # Beautiful terminal UI
-└── docs/                        # 📚 Documentation (this file!)
+├── main.py                          # Application entry point
+├── pyproject.toml                   # Dependencies and project config
+├── .env                             # Environment configuration (not in git)
+├── .env.example                     # Environment template
+├── src/
+│   ├── ai/                          # AI Integration Layer
+│   │   ├── openai_processor.py      # OpenAI-compatible processor
+│   │   ├── deepagents_processor.py  # DeepAgents multi-agent orchestration
+│   │   ├── enhanced_processor.py    # Unified processor interface
+│   │   └── model_factory.py         # Model creation factory
+│   ├── core/                        # Core Business Logic
+│   │   ├── agent.py                 # Main agent orchestration
+│   │   ├── config.py                # Configuration management
+│   │   ├── logger.py                # Centralized logging
+│   │   ├── workflows.py             # Pre-built workflow templates
+│   │   ├── human_in_the_loop.py     # Approval system
+│   │   └── task_engine.py           # Task execution engine
+│   ├── terraform/                   # Terraform Integration
+│   │   ├── cli.py                   # Terraform CLI wrapper
+│   │   └── parser.py                # Terraform file parser
+│   └── ui/                          # User Interface
+│       └── enhanced_cli.py          # Terminal UI
+└── docs/                            # Documentation
+    ├── CHEATSHEET.md                # Quick reference
+    └── CODE_EXPLANATION.md          # This file
 ```
 
 ---
 
-## Core Concepts Explained
+## Core Components
 
-### 1. **What is Infrastructure as Code (IAC)?**
-Infrastructure as Code is like writing code for your computer infrastructure (servers, databases, networks) instead of setting them up manually. Terraform is a popular IAC tool that lets you define your infrastructure in configuration files.
+### 1. Configuration Management (`src/core/config.py`)
 
-### 2. **What is Claude AI?**
-Claude AI is an advanced language model created by Anthropic. Think of it as a very smart assistant that can understand and generate human-like text. This app uses Claude to:
-- Understand your English questions
-- Generate appropriate Terraform commands
-- Provide intelligent responses
+**Purpose**: Central configuration with validation
 
-### 3. **What is "Native Tool Use"?**
-"Native tool use" means Claude can directly call functions (tools) in our code. This is like giving Claude a toolbox with specific tools it can use:
-- `execute_terraform_plan` tool
-- `get_resources` tool
-- `analyze_infrastructure` tool
+**Key Features**:
+- Environment variable loading with `.env` file
+- **Pydantic validation** for type safety
+- Field validators for AI provider, log level, Terraform path
+- Sensible defaults for all settings
 
-### 4. **What is Async Programming?**
-Async (asynchronous) programming lets the application do multiple things at once without waiting. This is important because:
-- AI responses can take time
-- Terraform commands can be slow
-- Users shouldn't have to wait for everything to complete
-
----
-
-## Step-by-Step Code Walkthrough
-
-### 🚪 Step 1: Program Entry Point (`main.py`)
-
-Let's start with where the program begins:
-
-```python
-#!/usr/bin/env python3
-"""
-Main entry point for Terraform AI Agent
-Follows single responsibility principle with separated concerns
-"""
-
-import asyncio
-import sys
-from pathlib import Path
-
-# Add src to path so we can import our modules
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-```
-
-**What's happening here?**
-- `#!/usr/bin/env python3` - Makes the file executable on Unix systems
-- We add `src` to Python's path so it can find our modules
-- We import necessary libraries
-
-#### The Main Application Class
-
-```python
-class TerraformAgentApp:
-    """Main application class coordinating UI and business logic"""
-
-    def __init__(self):
-        self.config = Config()                    # Load configuration
-        self.agent = TerraformAgent(self.config)  # Create the agent
-        self.cli = EnhancedCLI()                  # Create the user interface
-```
-
-**Think of this like:**
-- `Config` = Settings file (reads from .env file)
-- `TerraformAgent` = The brain of the application
-- `EnhancedCLI` = The pretty face users see
-
-#### The Main Application Loop
-
-```python
-async def run(self):
-    """Run the main application"""
-    # Initialize UI
-    self.cli.clear_screen()
-    self.cli.show_welcome()
-
-    # Main command loop
-    while self.agent.is_running():
-        try:
-            # Get user input (now async)
-            command = await self.cli.get_command_input()
-
-            # Process command asynchronously
-            response = await self.agent.process_command_async(command)
-
-            # Handle response
-            await self._handle_response(response)
-```
-
-**This is like a conversation:**
-1. Show welcome screen
-2. Ask user for input
-3. Process what they said
-4. Show the response
-5. Repeat until they say "exit"
-
-### ⚙️ Step 2: Configuration Management (`src/core/config.py`)
-
-The `Config` class handles all application settings:
-
+**Example**:
 ```python
 class Config(BaseModel):
-    """Application configuration"""
-
-    # Claude/Anthropic Configuration
-    anthropic_api_key: Optional[str] = Field(None, env="ANTHROPIC_API_KEY")
-    anthropic_model: str = Field("claude-3-5-sonnet-20241022", env="ANTHROPIC_MODEL")
-
-    # Terraform Configuration
-    terraform_path: str = Field("terraform", env="TERRAFORM_PATH")
-    terraform_dir: str = Field(".", env="TERRAFORM_DIR")
+    # AI Provider Configuration
+    ai_provider: str = Field("openai_compatible", env="AI_PROVIDER")
+    
+    @field_validator("ai_provider")
+    @classmethod
+    def validate_ai_provider(cls, v: str) -> str:
+        valid_providers = ["openai", "openai_compatible"]
+        if v.lower() not in valid_providers:
+            logger.warning(f"Invalid provider. Defaulting to 'openai_compatible'")
+            return "openai_compatible"
+        return v.lower()
 ```
 
-**Key Concepts:**
-- **Pydantic**: A Python library for data validation
-- **Environment Variables**: Settings stored in the system or `.env` file
-- **Type Hints**: `Optional[str]` means this could be a string or None
+**Production Features**:
+- ✅ Input validation prevents invalid configurations
+- ✅ Warnings for missing Terraform CLI
+- ✅ Type safety with Pydantic
 
-#### Loading Environment Variables
+### 2. Main Agent (`src/core/agent.py`)
 
+**Purpose**: Orchestrates all operations and tool execution
+
+**Key Responsibilities**:
+- Registers Terraform tools for AI to use
+- Manages conversation flow
+- Coordinates between AI processor and Terraform CLI
+- Executes workflows
+
+**Tool Registration**:
 ```python
-def __init__(self, **data):
-    # Explicitly read environment variables
-    env_data = {
-        "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
-        "anthropic_model": os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022"),
-        # ... more settings
-    }
-
-    # Merge with provided data
-    merged_data = {**env_data, **data}
-    super().__init__(**merged_data)
-```
-
-**What this does:**
-1. Reads settings from environment variables (like `ANTHROPIC_API_KEY`)
-2. Provides default values if not set
-3. Validates everything using Pydantic
-
-### 🤖 Step 3: AI Integration (`src/ai/claude_processor.py`)
-
-This is where the magic happens - communicating with Claude AI!
-
-#### Initializing Claude
-
-```python
-class ClaudeProcessor:
-    """Claude-based processor with native tool use and prompt caching"""
-
-    def __init__(self, config: Config):
-        self.config = config
-
-        # Initialize Claude clients if API key is available
-        if config.anthropic_api_key:
-            try:
-                self.client = Anthropic(api_key=config.anthropic_api_key)
-                self.async_client = AsyncAnthropic(api_key=config.anthropic_api_key)
-```
-
-**Key Points:**
-- We create both sync and async clients
-- The API key is required to talk to Claude
-- Error handling ensures the app doesn't crash if API key is missing
-
-#### The Core Processing Method
-
-```python
-async def process_query_async(self, query: str) -> str:
-    """Process a query using Claude with tool use and return the response"""
-
-    # Get Terraform context for caching
-    context = self._get_terraform_context()
-
-    # Prepare the conversation
-    messages = [
-        {
-            "role": "user",
-            "content": query
-        }
+def _register_tools(self):
+    # Create tools that AI can call
+    tools = [
+        self._create_terraform_plan_tool(),
+        self._create_terraform_apply_tool(),
+        self._create_terraform_validate_tool(),
+        # ... more tools
     ]
+```
 
-    # Call Claude API with tools
-    response = await self.async_client.messages.create(
-        model=self.config.anthropic_model,
-        max_tokens=self.config.anthropic_max_tokens,
-        messages=messages,
-        tools=self.tools,  # This is the magic part!
-        system=self.system_prompt
+**Production Features**:
+- ✅ Async/await for non-blocking operations
+- ✅ Comprehensive error handling
+- ✅ Tool result formatting
+
+### 3. Logging System (`src/core/logger.py`)
+
+**Purpose**: Centralized, configurable logging
+
+**Key Features**:
+- File and console logging
+- Configurable log levels (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- Structured log format with timestamps
+- Module-specific loggers
+
+**Usage**:
+```python
+from src.core.logger import get_logger
+
+logger = get_logger(__name__)
+logger.info("Operation completed successfully")
+logger.error("Failed to process request", exc_info=True)
+```
+
+---
+
+## AI Integration Layer
+
+### 1. OpenAI Processor (`src/ai/openai_processor.py`)
+
+**Purpose**: Interface to OpenAI-compatible models
+
+**Key Features**:
+- **Retry Logic**: Exponential backoff for transient failures (using tenacity)
+- **Token Tracking**: Monitors input/output tokens for cost management
+- **Input Validation**: Prevents empty or invalid requests
+- **Conversation History**: Maintains context across requests
+
+**Retry Implementation**:
+```python
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type((ConnectionError, TimeoutError)),
+    reraise=True
+)
+async def _invoke_model_with_retry(self, messages: List) -> Any:
+    return await self.model.ainvoke(messages)
+```
+
+**Production Features**:
+- ✅ Automatic retry on network failures
+- ✅ Request validation
+- ✅ Comprehensive error handling with stack traces
+- ✅ Token usage monitoring
+
+### 2. DeepAgents Processor (`src/ai/deepagents_processor.py`)
+
+**Purpose**: Multi-agent orchestration for complex workflows
+
+**Sub-Agents**:
+1. **security-auditor**: Security analysis and compliance
+2. **cost-optimizer**: Cost optimization and resource sizing
+3. **deployment-validator**: Deployment validation and testing
+4. **migration-planner**: Infrastructure migration planning
+
+**Configuration**:
+```python
+agent = create_deep_agent(
+    tools=self.terraform_tools,
+    instructions=instructions,
+    model=self.model,
+    subagents=self.subagents,
+    tool_configs=tool_configs,
+    recursion_limit=50,  # Increased from default 25
+)
+```
+
+**Production Features**:
+- ✅ Specialized sub-agents for different tasks
+- ✅ Increased recursion limit for complex workflows
+- ✅ Human-in-the-loop approval for critical tools
+- ✅ Coordinated multi-step operations
+
+### 3. Enhanced Processor (`src/ai/enhanced_processor.py`)
+
+**Purpose**: Unified interface that switches between processors
+
+**Key Responsibilities**:
+- Initializes both OpenAI and DeepAgents processors
+- Routes requests based on configuration
+- Provides consistent API regardless of backend
+
+**Request Routing**:
+```python
+async def process_request(self, request, context=None):
+    # Choose the appropriate processor
+    if self.config.use_deepagents and self.deepagents_processor:
+        return await self.deepagents_processor.process_request(request, context)
+    elif self.openai_processor:
+        return await self.openai_processor.process_request(request, context)
+```
+
+### 4. Model Factory (`src/ai/model_factory.py`)
+
+**Purpose**: Creates appropriate AI model instances
+
+**Supported Providers**:
+- OpenAI (gpt-4o, gpt-4-turbo, etc.)
+- OpenAI Compatible (Ollama, LocalAI, LM Studio, kimi, etc.)
+
+**Factory Pattern**:
+```python
+@staticmethod
+def create_model(config: Config) -> BaseLanguageModel:
+    provider = config.ai_provider.lower()
+    
+    if provider == "openai":
+        return ModelFactory._create_openai_model(config)
+    elif provider == "openai_compatible":
+        return ModelFactory._create_openai_compatible_model(config)
+```
+
+---
+
+## Terraform Integration
+
+### 1. Terraform CLI Wrapper (`src/terraform/cli.py`)
+
+**Purpose**: Safe interface to Terraform CLI
+
+**Security Features**:
+- **Input Sanitization**: Removes dangerous characters (; & | ` $ etc.)
+- **Working Directory Validation**: Ensures directory exists and is valid
+- **Path Resolution**: Converts to absolute paths to prevent traversal attacks
+
+**Input Sanitization**:
+```python
+def _sanitize_input(self, value: str) -> str:
+    """Sanitize user input to prevent command injection"""
+    dangerous_chars = [";", "&", "|", "`", "$", "(", ")", "<", ">", "\n", "\r"]
+    sanitized = value
+    for char in dangerous_chars:
+        if char in sanitized:
+            logger.warning(f"Removing dangerous character '{char}' from input")
+            sanitized = sanitized.replace(char, "")
+    return sanitized
+```
+
+**Async Command Execution**:
+```python
+async def _run_command(
+    self,
+    command: List[str],
+    timeout: int = 300
+) -> TerraformResult:
+    # Create subprocess
+    process = await asyncio.create_subprocess_exec(
+        *full_command,
+        cwd=self.working_dir,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    
+    # Wait with timeout
+    stdout, stderr = await asyncio.wait_for(
+        process.communicate(), 
+        timeout=timeout
     )
 ```
 
-**What makes this special:**
-- **Tools**: We give Claude a toolbox of functions it can call
-- **Context**: We provide Terraform information so Claude knows what we're working with
-- **System Prompt**: Instructions that tell Claude how to behave
+**Production Features**:
+- ✅ Command injection prevention
+- ✅ Timeout protection
+- ✅ Proper error handling
+- ✅ Return code interpretation
 
-### 🧠 Step 4: The Agent Brain (`src/core/agent.py`)
+### 2. Terraform Parser (`src/terraform/parser.py`)
 
-The `TerraformAgent` class is the central coordinator:
+**Purpose**: Parse and analyze Terraform configuration files
 
-```python
-class TerraformAgent:
-    """Core Terraform AI Agent following single responsibility principle"""
+**Capabilities**:
+- Parse `.tf` files using python-hcl2
+- Extract resources, variables, outputs, providers
+- Count and categorize resources
+- Provide configuration summaries
 
-    def __init__(self, config: Config):
-        self.config = config
-        self.task_engine = TaskEngine(config)          # Task execution
-        self.ai_processor = ClaudeProcessor(config)    # AI processing
-        self.conversation_history = []                 # Memory
-        self.session_start = datetime.now()            # Track session time
+---
+
+## Security & Production Features
+
+### Security Measures
+
+1. **Input Validation**
+   - Configuration validation with Pydantic
+   - Request validation (non-empty, proper format)
+   - Terraform input sanitization
+
+2. **Command Injection Prevention**
+   - Dangerous character filtering
+   - Path validation and resolution
+   - No shell=True in subprocess calls
+
+3. **Error Handling**
+   - Try-catch blocks on all critical operations
+   - Detailed error logging with stack traces
+   - Graceful degradation
+
+4. **Human-in-the-Loop**
+   - Critical operations require approval
+   - Risk assessment for operations
+   - Approval history tracking
+
+### Reliability Features
+
+1. **Retry Logic**
+   - Exponential backoff for transient failures
+   - Configurable retry attempts
+   - Connection and timeout error handling
+
+2. **Logging**
+   - Centralized logging system
+   - Configurable log levels
+   - File and console output
+
+3. **Token Tracking**
+   - Input/output token monitoring
+   - Cost estimation
+   - Usage statistics
+
+4. **Configuration Validation**
+   - Field validators
+   - Type checking
+   - Sensible defaults
+
+---
+
+## Configuration Management
+
+### Environment Variables
+
+**AI Configuration**:
+```bash
+AI_PROVIDER=openai_compatible
+OPENAI_COMPATIBLE_BASE_URL=http://localhost:11434/v1
+OPENAI_COMPATIBLE_MODEL=kimi-k2:1t-cloud
+OPENAI_COMPATIBLE_MAX_TOKENS=4096
 ```
 
-#### Setting Up Tools for Claude
-
-```python
-def _setup_claude_tools(self):
-    """Setup tool handlers for Claude processor"""
-
-    # Register all tool handlers
-    self.ai_processor.register_tool_handler(
-        "execute_terraform_plan", self._handle_terraform_plan_tool
-    )
-    self.ai_processor.register_tool_handler(
-        "get_resources", self._handle_get_resources_tool
-    )
+**DeepAgents Configuration**:
+```bash
+USE_DEEPAGENTS=true
+HUMAN_IN_THE_LOOP=true
 ```
 
-**This is like giving Claude a toolbox:**
-- When Claude wants to run `terraform plan`, it calls the `execute_terraform_plan` tool
-- Our Python code handles that tool call and runs the actual command
-- Results are sent back to Claude to understand and explain
-
-#### Processing Commands
-
-```python
-async def process_command_async(self, command: str) -> str:
-    """Process a command using the AI processor"""
-
-    # Add to conversation history
-    self.conversation_history.append({
-        "role": "user",
-        "content": command,
-        "timestamp": datetime.now().isoformat()
-    })
-
-    # Process with AI
-    response = await self.ai_processor.process_query_async(command)
-
-    # Add response to history
-    self.conversation_history.append({
-        "role": "assistant",
-        "content": response,
-        "timestamp": datetime.now().isoformat()
-    })
-
-    return response
+**Terraform Configuration**:
+```bash
+TERRAFORM_PATH=terraform
+TERRAFORM_WORKSPACE=default
+TERRAFORM_DIR=/absolute/path/to/terraform/files
 ```
 
-### 🎨 Step 5: User Interface (`src/ui/enhanced_cli.py`)
-
-The `EnhancedCLI` class makes the terminal look beautiful:
-
-```python
-class EnhancedCLI:
-    """Enhanced CLI UI components following single responsibility principle"""
-
-    def __init__(self):
-        self.console = Console()  # Rich console for beautiful output
-        self.prompt_session = PromptSession()  # For user input
+**Application Configuration**:
+```bash
+LOG_LEVEL=INFO
+MAX_FILE_SIZE=10485760
+UI_THEME=dark
 ```
 
-#### Display Methods
+### Configuration Validation Flow
 
-```python
-def show_welcome(self):
-    """Show welcome message"""
-    welcome_text = "[bold #00D4AA]🤖 DZP IAC Agent[/bold #00D4AA]"
-    welcome_panel = Panel(
-        welcome_text,
-        border_style="#00D4AA",
-        padding=(1, 2)
-    )
-    self.console.print(welcome_panel)
-
-def show_project_overview(self, project_data):
-    """Show project overview in a beautiful table"""
-
-    table = Table(
-        title="📋 Project Overview",
-        box=box.ROUNDED,
-        show_header=True
-    )
-    table.add_column("Metric", style="#00D4AA", width=20)
-    table.add_column("Value", style="#FFFFFF", width=30)
-
-    # Add data rows
-    table.add_row("Resources", f"{project_data.get('resource_count', 0)}")
-    table.add_row("Variables", f"{project_data.get('variable_count', 0)}")
-
-    self.console.print(table)
-```
-
-**Rich Library Features:**
-- **Colors**: `[#00D4AA]` defines custom colors
-- **Panels**: Beautiful bordered content boxes
-- **Tables**: Organized data display
-- **Progress bars**: Visual progress indicators
+1. Load `.env` file with dotenv
+2. Parse with Pydantic BaseModel
+3. Run field validators
+4. Set defaults for missing values
+5. Log warnings for invalid values
+6. Initialize application with validated config
 
 ---
 
 ## Key Programming Patterns
 
-### 1. **Dependency Injection**
-```python
-class TerraformAgent:
-    def __init__(self, config: Config):
-        self.config = config  # Config is "injected" into the agent
-```
-**Why this is good:** Makes code testable and flexible. We can pass different configurations.
+### 1. Factory Pattern
+Used in `model_factory.py` to create different AI model instances
 
-### 2. **Async/Await Pattern**
-```python
-async def process_command_async(self, command: str) -> str:
-    response = await self.ai_processor.process_query_async(command)
-    return response
-```
-**Why this is good:** Prevents the app from freezing while waiting for AI responses.
+### 2. Dependency Injection
+Configuration and logger injected into classes for testability
 
-### 3. **Single Responsibility Principle**
-Each class has one job:
-- `Config`: Only handles configuration
-- `ClaudeProcessor`: Only talks to Claude
-- `EnhancedCLI`: Only handles display
-- `TerraformAgent`: Only coordinates everything
+### 3. Async/Await
+Non-blocking operations for better performance
 
-### 4. **Error Handling**
-```python
-try:
-    response = await self.agent.process_command_async(command)
-except Exception as e:
-    logger.error(f"Unexpected error: {e}")
-    self.cli.show_error(f"Unexpected error: {e}")
-```
-**Why this is good:** Prevents crashes and provides helpful error messages.
+### 4. Retry Pattern
+Automatic retry with exponential backoff for reliability
 
-### 5. **Logging**
-```python
-from src.core.logger import get_logger
+### 5. Validator Pattern
+Pydantic validators for configuration validation
 
-logger = get_logger(__name__)
-logger.info("Claude processor initialized")
-```
-**Why this is good:** Helps debug issues and track what the app is doing.
+### 6. Strategy Pattern
+Different processors (OpenAI, DeepAgents) with same interface
 
 ---
 
-## How Everything Works Together
+## Data Flow
 
-### Complete Flow Example
-
-Let's trace what happens when a user types "How many resources are defined?"
-
-1. **User Input** (`main.py`)
-   ```python
-   command = await self.cli.get_command_input()  # "How many resources are defined?"
-   ```
-
-2. **Command Processing** (`main.py`)
-   ```python
-   response = await self.agent.process_command_async(command)
-   ```
-
-3. **Agent Processing** (`agent.py`)
-   ```python
-   # Add to conversation history
-   self.conversation_history.append({"role": "user", "content": command})
-
-   # Send to AI
-   response = await self.ai_processor.process_query_async(command)
-   ```
-
-4. **AI Processing** (`claude_processor.py`)
-   ```python
-   # Claude analyzes the query and decides which tool to use
-   response = await self.async_client.messages.create(
-       messages=[{"role": "user", "content": query}],
-       tools=self.tools  # Claude sees "get_resources" tool
-   )
-   ```
-
-5. **Tool Execution** (`agent.py`)
-   ```python
-   def _handle_get_resources_tool(self, tool_input):
-       # Parse Terraform files and count resources
-       resources = self._parse_terraform_resources()
-       return {"resources": resources, "count": len(resources)}
-   ```
-
-6. **AI Response** (`claude_processor.py`)
-   Claude receives the tool result and formulates a natural language response:
-   "I found 12 resources in your Terraform configuration including 3 virtual machines, 2 storage accounts, and 7 networking resources."
-
-7. **Display Result** (`main.py`)
-   ```python
-   await self._handle_response(response)
-   # Shows beautiful formatted output to user
-   ```
-
-### Component Communication
+### Simple Query Flow
 
 ```
-┌─────────────┐    commands    ┌─────────────┐    queries     ┌─────────────┐
-│   Enhanced  │ ─────────────▶ │ Terraform   │ ─────────────▶ │   Claude    │
-│     CLI      │               │   Agent     │               │  Processor  │
-│   (Display)  │ ◀───────────── │   (Logic)   │ ◀───────────── │    (AI)     │
-└─────────────┘   responses    └─────────────┘   responses    └─────────────┘
-       │                                                          │
-       │                                                          ▼
-       │                                                  ┌─────────────┐
-       │                                                  │   Terraform │
-       └──────────────────────────────────────────────────▶ │    Tools    │
-                                                          │ (CLI/Parser)│
-                                                          └─────────────┘
+User Input → Enhanced Processor → OpenAI Processor 
+  → Model API → Response → Format → Display
+```
+
+### Complex Query with DeepAgents
+
+```
+User Input → Enhanced Processor → DeepAgents Processor
+  → Main Agent → Sub-Agent Selection → Tool Execution
+  → Sub-Agent Analysis → Result Aggregation → Response
+```
+
+### Terraform Operation Flow
+
+```
+User Request → Agent → Tool Selection → Terraform CLI
+  → Execute Command → Parse Output → Format Response
+  → Display to User
 ```
 
 ---
 
-## Learning Takeaways
+## Error Handling Strategy
 
-### For Beginner Programmers
+### Levels of Error Handling
 
-1. **Modular Design**: Break complex problems into small, focused classes
-2. **Async Programming**: Use `async/await` for operations that take time
-3. **Error Handling**: Always wrap potentially failing code in `try/except`
-4. **Configuration**: Separate configuration from business logic
-5. **Logging**: Add logs to understand what your program is doing
+1. **Validation Layer**: Catch invalid inputs early
+2. **Processor Layer**: Handle AI API errors with retry
+3. **CLI Layer**: Handle Terraform execution errors
+4. **UI Layer**: Display user-friendly error messages
 
-### Modern Python Features Used
+### Error Recovery
 
-1. **Type Hints**: `Optional[str]`, `List[str]` - Makes code clearer
-2. **Data Classes**: `BaseModel` from Pydantic - Automatic validation
-3. **Context Managers**: `with` statements for resource management
-4. **f-strings**: `f"Hello {name}"` - Modern string formatting
-5. **Pathlib**: `Path(__file__).parent` - Modern file path handling
-
-### Design Principles Demonstrated
-
-1. **Single Responsibility**: Each class has one purpose
-2. **Dependency Injection**: Pass dependencies to constructors
-3. **Separation of Concerns**: UI, logic, and data are separate
-4. **Error Handling**: Graceful failure instead of crashes
-5. **Configuration Management**: Externalize settings
-
-### What Makes This Code "Production Ready"
-
-1. **Comprehensive Error Handling**: Catches and handles exceptions gracefully
-2. **Logging**: Tracks what the application is doing
-3. **Configuration**: Flexible settings management
-4. **Type Safety**: Uses type hints throughout
-5. **Testing Structure**: Organized for easy unit testing
-6. **Documentation**: Clear docstrings and comments
-7. **Modern Tooling**: Uses latest Python libraries and best practices
+- **Transient Errors**: Automatic retry with backoff
+- **Configuration Errors**: Log warning, use defaults
+- **Critical Errors**: Log with stack trace, inform user
+- **Timeout Errors**: Terminate process, return timeout error
 
 ---
 
-## 🎯 Conclusion
+## Testing Approach
 
-The DZP IAC Agent demonstrates how to build a sophisticated AI-powered application using modern Python practices. It combines:
+### Integration Testing
 
-- **AI Integration** (Claude API)
-- **Beautiful UI** (Rich terminal)
-- **Solid Architecture** (Clean separation of concerns)
-- **Production Quality** (Error handling, logging, configuration)
+The project includes `test_integration.py` that validates:
+- Configuration loading
+- Model factory creation
+- Processor initialization
+- Workflow templates
+- Human-in-the-loop system
 
-For beginners, this codebase shows how real-world applications are structured and how different components work together to create a cohesive user experience.
+### Manual Testing
 
-The key takeaway is that complex applications are built from simple, well-designed pieces that each do one thing well. 🚀
+```bash
+# Test configuration
+uv run python test_integration.py
+
+# Test main application
+uv run python main.py
+```
 
 ---
 
-*Happy coding! If you have questions about any part of this code, feel free to ask.* 🤖
+## Performance Considerations
+
+### Optimization Techniques
+
+1. **Async Operations**: Non-blocking I/O
+2. **Token Limits**: Configurable max tokens
+3. **Caching**: Conversation history for context
+4. **Lazy Loading**: Components initialized on demand
+
+### Scalability
+
+- Stateless processors (can be scaled horizontally)
+- Configurable timeouts
+- Resource limits (max file size)
+- Token usage monitoring
+
+---
+
+## Future Enhancements
+
+Potential areas for improvement:
+
+1. **Caching Layer**: Cache Terraform plan results
+2. **Metrics Collection**: Prometheus/Grafana integration
+3. **Web Interface**: REST API + web UI
+4. **Multi-tenancy**: Support multiple projects
+5. **State Management**: Better state file handling
+6. **Testing**: Comprehensive unit and integration tests
+
+---
+
+## Learning Resources
+
+### Python Concepts Used
+
+- **Async/Await**: Modern Python concurrency
+- **Type Hints**: Static typing with Python
+- **Pydantic**: Data validation library
+- **Decorators**: @retry, @field_validator, @tool
+- **Context Managers**: with statements for resources
+
+### Design Patterns
+
+- Factory Pattern (model_factory.py)
+- Strategy Pattern (multiple processors)
+- Dependency Injection (config, logger)
+- Retry Pattern (with tenacity)
+
+### External Libraries
+
+- **LangChain**: LLM application framework
+- **DeepAgents**: Multi-agent orchestration
+- **Rich**: Terminal UI library
+- **Tenacity**: Retry library
+- **Pydantic**: Data validation
+
+---
+
+**DZP IAC Agent** - Production-ready Terraform automation with OpenAI-compatible models and DeepAgents
