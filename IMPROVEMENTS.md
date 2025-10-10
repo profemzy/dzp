@@ -4,6 +4,41 @@ This document outlines the recent improvements and fixes applied to the DZP IAC 
 
 ## ✅ Completed Improvements
 
+### Latest: **Intelligent Query Routing** 🧠
+**Status:** Completed (Latest)
+
+**Changes Made:**
+- Created `QueryClassifier` that analyzes query complexity automatically
+- Integrated intelligent routing into `EnhancedAIProcessor`
+- App now automatically chooses between standard processor (fast) and DeepAgents (powerful)
+- Simple queries use standard processor (1-3 seconds)
+- Complex multi-domain workflows trigger DeepAgents (15-30 seconds)
+- **No manual configuration needed** - the app decides!
+
+**New Files:**
+- `src/ai/query_classifier.py` - Intelligent query classification engine
+
+**Files Modified:**
+- `src/ai/enhanced_processor.py` - Added automatic routing logic
+- `src/ai/openai_processor.py` - Added null-safe usage metadata handling
+- `.env` - Updated to `USE_DEEPAGENTS=true` with intelligent routing
+- `README.md` - Added intelligent routing documentation
+- `docs/CHEATSHEET.md` - Added routing examples and guidance
+
+**Impact:**
+- ✅ No more manual DeepAgents toggling
+- ✅ No more recursion errors on simple queries
+- ✅ Optimal performance - fast by default, powerful when needed
+- ✅ Better user experience - transparent and automatic
+
+**Classification Examples:**
+- "What resources?" → ⚡ Standard (1-3s)
+- "Run terraform plan" → ⚡ Standard (1-3s)
+- "Plan migration AWS→Azure + cost + security" → 🤖 DeepAgents (15-30s)
+- "SOC2 audit + remediation plan" → 🤖 DeepAgents (15-30s)
+
+---
+
 ### 1. **Global Command Installation** ✨
 **Status:** Completed
 

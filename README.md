@@ -6,6 +6,10 @@ An intelligent Infrastructure as Code agent powered by **OpenAI-compatible model
 
 ### 🤖 AI & Multi-Agent Orchestration
 - **OpenAI-Compatible**: Works with OpenAI, Ollama, LocalAI, LM Studio, and any OpenAI-compatible endpoint
+- **🧠 Intelligent Query Routing**: Automatically selects the optimal processor based on query complexity
+  - Simple queries → Fast standard processor (1-3 seconds)
+  - Complex workflows → DeepAgents multi-agent orchestration (15-30 seconds)
+  - No manual configuration needed - the app decides!
 - **DeepAgents Integration**: Multi-agent orchestration with 4 specialized sub-agents
   - **Security Auditor**: Security analysis and compliance checking (CIS, NIST, SOC2, GDPR)
   - **Cost Optimizer**: Cost optimization and resource sizing recommendations
@@ -167,7 +171,9 @@ OPENAI_COMPATIBLE_MAX_TOKENS=4096
 # DeepAgents Configuration
 # ===========================================
 # Enable multi-agent orchestration for complex workflows
-USE_DEEPAGENTS=false
+# Note: When enabled, the app intelligently decides when to use DeepAgents
+# based on query complexity. Simple queries use the fast standard processor.
+USE_DEEPAGENTS=true
 # Require human approval for critical operations (apply, destroy)
 HUMAN_IN_THE_LOOP=true
 
@@ -275,14 +281,27 @@ All three commands launch the same application. Use whichever you prefer!
 🔒 Security Analysis: NSG allows SSH (port 22), HTTP (80), HTTPS (443)
 ```
 
-#### Advanced Queries with DeepAgents
+#### 🧠 Intelligent Query Routing
+
+The app **automatically** chooses the best processor for your query:
+
+**Simple Queries** (⚡ Standard Processor - 1-3 seconds):
 ```
-> Should I migrate from VMs to Kubernetes?
-> Analyze the security implications of this setup
-> What's the best way to optimize costs?
-> Compare these two infrastructure approaches
-> Plan a migration from AWS to Azure
+> What resources are in this configuration?
+> Show me all S3 buckets
+> Run terraform plan
+> Analyze security of this infrastructure
 ```
+
+**Complex Queries** (🤖 DeepAgents - 15-30 seconds):
+```
+> Plan a migration from AWS to Azure with cost analysis and security review
+> Perform a comprehensive SOC2 compliance audit and create a remediation roadmap
+> Optimize costs while maintaining security compliance
+> Design a blue-green deployment strategy with rollback procedures
+```
+
+**How it works**: The app analyzes each query for complexity, multi-domain requirements, and workflow patterns. You don't need to configure anything - just ask naturally!
 
 #### Utility Commands
 ```
@@ -313,6 +332,7 @@ dzp/
 ├── src/
 │   ├── ai/
 │   │   ├── model_factory.py     # AI model factory (OpenAI/Compatible)
+│   │   ├── query_classifier.py  # Intelligent query routing
 │   │   ├── enhanced_processor.py # Enhanced AI processor
 │   │   ├── openai_processor.py  # OpenAI compatible processor
 │   │   └── deepagents_processor.py # DeepAgents multi-agent orchestration

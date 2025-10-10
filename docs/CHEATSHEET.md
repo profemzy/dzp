@@ -350,32 +350,45 @@ quit
 
 ---
 
-## 🧠 Advanced Queries (DeepAgents Multi-Agent)
+## 🧠 Intelligent Query Routing
 
-These queries leverage DeepAgents multi-agent orchestration for complex analysis:
+The app **automatically** chooses between standard and DeepAgents processing based on query complexity:
 
-```
-Analyze the security implications of this setup (uses security-auditor sub-agent)
-Compare this infrastructure with best practices (uses cost-optimizer)
-Should I migrate to a different architecture? (uses migration-planner)
-What are the risks of this configuration? (uses security-auditor)
-Optimize this infrastructure for production (uses deployment-validator)
-Recommend improvements with reasoning
-What's the impact of adding X feature?
-Design a disaster recovery strategy (uses migration-planner)
-How should I structure this for scalability? (uses cost-optimizer)
-Validate my deployment plan (uses deployment-validator)
-```
+### ⚡ Simple Queries (Standard Processor - Fast)
 
-### DeepAgents Workflow Commands
+These use the **standard processor** for quick responses (1-3 seconds):
 
 ```
-Run a security audit workflow
-Execute a cost optimization analysis
-Validate my deployment
-Plan an infrastructure migration
-Create a disaster recovery plan
+What resources are in this configuration?
+Show me all S3 buckets
+How many VMs do I have?
+Run terraform plan
+Analyze security of this infrastructure
+What's the estimated cost?
+List all EC2 instances
+Validate the configuration
 ```
+
+**Why fast?** Single-domain, straightforward questions don't need multi-agent coordination.
+
+### 🤖 Complex Queries (DeepAgents - Powerful)
+
+These automatically trigger **DeepAgents multi-agent orchestration** (15-30 seconds):
+
+```
+Plan a migration from AWS to Azure with cost analysis and security review
+Perform a comprehensive SOC2 compliance audit and create a remediation roadmap
+Optimize costs while maintaining security compliance and create implementation plan
+Design a blue-green deployment strategy with rollback procedures and cost estimates
+Analyze our infrastructure for CIS benchmark violations, estimate remediation costs, and create a 60-day implementation plan
+Should I migrate from VMs to Kubernetes? Provide cost comparison, security implications, and migration strategy
+```
+
+**Why DeepAgents?** Multi-domain, multi-step workflows benefit from coordinated expert agents:
+- **Security Auditor**: Security analysis and compliance checking
+- **Cost Optimizer**: Cost optimization and resource sizing
+- **Deployment Validator**: Deployment validation and testing
+- **Migration Planner**: Infrastructure migration planning
 
 ---
 
@@ -387,11 +400,19 @@ Create a disaster recovery plan
 - Use follow-up questions like "why?" or "tell me more"
 - Combine queries: "Check if deployed, then validate configuration"
 - Ask for explanations: "Explain why this is configured this way"
+- **Let the app decide**: Don't worry about which processor to use - intelligent routing handles it!
 
 ### ❌ **DON'T:**
 - Use exact Terraform syntax in questions (agent understands natural language)
 - Worry about command formatting (agent translates for you)
 - Repeat the same question (use conversation history)
+- Manually toggle DeepAgents on/off (it's automatic now!)
+
+### 🧠 **Understanding Routing:**
+- **Trigger words for DeepAgents**: "migrate", "audit", "roadmap", "comprehensive", "plan for", "strategy"
+- **Multi-domain queries**: Combining "security + cost", "compliance + migration" triggers DeepAgents
+- **Simple is fast**: Single-topic questions always use the fast processor
+- **Complex is thorough**: Multi-step workflows get full multi-agent treatment
 
 ### 🎯 **Examples of Great Prompts:**
 
