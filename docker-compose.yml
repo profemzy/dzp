@@ -19,11 +19,12 @@ services:
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
       - USE_DEEPAGENTS=${USE_DEEPAGENTS:-false}
       - HUMAN_IN_THE_LOOP=${HUMAN_IN_THE_LOOP:-true}
-      - TERRAFORM_DIR=${TERRAFORM_DIR:-/terraform}
+      - TERRAFORM_DIR=/terraform
+      - TERRAFORM_PATH=terraform
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
       # Mount your Terraform files here
-      - ${TERRAFORM_DIR:-./terraform}:/terraform
+      - ${HOST_TERRAFORM_DIR:-./terraform}:/terraform
       # Persist session data
       - api-sessions:/app/sessions
     networks:
@@ -56,11 +57,12 @@ services:
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
       - USE_DEEPAGENTS=${USE_DEEPAGENTS:-false}
       - HUMAN_IN_THE_LOOP=${HUMAN_IN_THE_LOOP:-true}
-      - TERRAFORM_DIR=${TERRAFORM_DIR:-/terraform}
+      - TERRAFORM_DIR=/terraform
+      - TERRAFORM_PATH=terraform
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
       # Mount your Terraform files here
-      - ${TERRAFORM_DIR:-./terraform}:/terraform
+      - ${HOST_TERRAFORM_DIR:-./terraform}:/terraform
       # Persist session data
       - web-sessions:/app/sessions
     networks:
