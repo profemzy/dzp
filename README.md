@@ -111,7 +111,7 @@ After installing dependencies, install the package in editable mode:
 uv pip install -e .
 ```
 
-This creates three executable commands: `dzp`, `tf-agent`, and `dzp-agent`.
+This creates five executable commands: `dzp`, `tf-agent`, `dzp-agent`, `dzp-api`, and `dzp-web`.
 
 **4. Make `dzp` globally available** (choose one option):
 
@@ -232,15 +232,28 @@ python main.py
 
 ### Available Console Commands
 
-The package provides three executable commands after installation:
+The package provides five executable commands after installation:
 
 | Command | Description |
 |---------|-------------|
-| `dzp` | **Main entry point** - Recommended command to run the agent |
-| `tf-agent` | Alternative command name for Terraform Agent |
-| `dzp-agent` | Alternative command name for DZP IAC Agent |
+| `dzp` | **Main CLI Agent** - Interactive terminal interface (recommended) |
+| `tf-agent` | Alternative command name for CLI agent |
+| `dzp-agent` | Alternative command name for CLI agent |
+| `dzp-api` | **REST API Server** - Runs on port 8000 by default |
+| `dzp-web` | **Web Interface** - Full web UI with API on port 8080 |
 
-All three commands launch the same application. Use whichever you prefer!
+**Quick Start:**
+```bash
+# Terminal interface
+dzp
+
+# API server only
+dzp-api --port 8000
+
+# Web interface (includes API)
+dzp-web --port 8080
+# Then open http://localhost:8080 in your browser
+```
 
 ### Example Conversations
 
@@ -313,6 +326,68 @@ The app **automatically** chooses the best processor for your query:
 > exit            # Exit agent
 ```
 
+## 🌐 Web Interface & API
+
+### Web Interface
+
+The DZP IAC Agent includes a full-featured web interface for browser-based interaction:
+
+```bash
+# Start the web interface
+dzp-web --port 8080
+
+# Open in browser
+open http://localhost:8080
+```
+
+**Features:**
+- 💬 **Chat Interface**: Natural language conversations with the agent
+- 📊 **Live Status Dashboard**: Monitor agent health and configuration
+- 🎛️ **Terraform Controls**: Execute plan, validate, apply, init commands
+- 📈 **Token Usage Tracking**: Real-time cost and usage monitoring
+- 🔄 **Session Management**: Persistent conversation history
+- 📱 **Responsive Design**: Works on desktop and mobile
+
+**Endpoints:**
+- `http://localhost:8080/` - Web interface
+- `http://localhost:8080/api/` - API endpoints
+- `http://localhost:8080/api/docs` - Interactive API documentation
+
+### REST API Server
+
+Run a standalone API server for programmatic access:
+
+```bash
+# Start API server
+dzp-api --port 8000
+
+# View API documentation
+open http://localhost:8000/docs
+```
+
+**Key API Endpoints:**
+- `GET /health` - Health check and status
+- `POST /initialize` - Initialize the agent
+- `POST /terraform/execute` - Execute Terraform commands
+- `GET /api/agent/status` - Get agent status
+- `GET /api/agent/tokens` - Get token usage statistics
+
+**Example API Usage:**
+```bash
+# Initialize the agent
+curl -X POST http://localhost:8000/initialize
+
+# Execute terraform plan
+curl -X POST http://localhost:8000/terraform/execute \
+  -H "Content-Type: application/json" \
+  -d '{"command": "plan"}'
+
+# Check agent status
+curl http://localhost:8000/api/agent/status
+```
+
+For complete API documentation and the web interface guide, see [web_interface/README.md](web_interface/README.md).
+
 ## 🏗️ Architecture
 
 ### Technology Stack
@@ -328,7 +403,7 @@ The app **automatically** chooses the best processor for your query:
 
 ```
 dzp/
-├── main.py                      # Application entry point
+├── main.py                      # CLI application entry point
 ├── src/
 │   ├── ai/
 │   │   ├── model_factory.py     # AI model factory (OpenAI/Compatible)
@@ -346,8 +421,16 @@ dzp/
 │   ├── terraform/
 │   │   ├── parser.py            # HCL/Terraform parsing
 │   │   └── cli.py               # Terraform CLI operations
-│   └── ui/
-│       └── enhanced_cli.py      # Professional terminal UI
+│   ├── ui/
+│   │   └── enhanced_cli.py      # Professional terminal UI
+│   └── api/
+│       ├── app.py               # FastAPI application
+│       ├── server.py            # API server entry point
+│       ├── models.py            # Pydantic models
+│       └── session_manager.py   # Session management
+├── web_interface/
+│   ├── server.py                # Web server (serves HTML + API)
+│   └── index.html               # Full-featured web UI
 └── docs/
     ├── CHEATSHEET.md            # Quick reference guide
     └── CODE_EXPLANATION.md      # Code architecture documentation

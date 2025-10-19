@@ -6,9 +6,16 @@ import asyncio
 from typing import Any, Dict, List, Optional
 
 from src.ai.openai_processor import OpenAIProcessor
-from src.ai.deepagents_processor import DeepAgentsProcessor
 from src.ai.model_factory import ModelFactory
 from src.ai.query_classifier import QueryClassifier
+
+# Try to import DeepAgents processor (optional dependency)
+try:
+    from src.ai.deepagents_processor import DeepAgentsProcessor
+    DEEPAGENTS_AVAILABLE = True
+except ImportError:
+    DeepAgentsProcessor = None
+    DEEPAGENTS_AVAILABLE = False
 from src.core.config import Config
 from src.core.logger import get_logger
 
@@ -56,13 +63,15 @@ class EnhancedAIProcessor:
 
     def initialize_deepagents(self, terraform_tools: List[Any]):
         """Initialize DeepAgents processor with terraform tools"""
-        if self.config.use_deepagents:
+        if self.config.use_deepagents and DEEPAGENTS_AVAILABLE:
             try:
                 self.deepagents_processor = DeepAgentsProcessor(self.config, terraform_tools)
                 logger.info("DeepAgents processor initialized successfully")
             except Exception as e:
                 logger.error(f"Failed to initialize DeepAgents processor: {e}")
                 self.deepagents_processor = None
+        elif self.config.use_deepagents and not DEEPAGENTS_AVAILABLE:
+            logger.warning("DeepAgents is configured but not available. Install deepagents package to enable.")
 
     def get_active_processor(self) -> Optional[str]:
         """Get the name of the active processor"""

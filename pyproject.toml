@@ -48,6 +48,11 @@ dependencies = [
     "langchain-core>=1.0.0a6",
     "langgraph>=0.1.0",
 
+    # FastAPI and web server
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
+
     # File system and process management
     "psutil>=5.9.0",
 
@@ -76,6 +81,8 @@ dev = [
 dzp = "main:main"
 tf-agent = "main:main"
 dzp-agent = "main:main"
+dzp-api = "src.api.server:main"
+dzp-web = "web_interface.server:main"
 
 [project.urls]
 Homepage = "https://github.com/dzp-iac-agent/dzp-iac-agent"
@@ -84,11 +91,13 @@ Repository = "https://github.com/dzp-iac-agent/dzp-iac-agent"
 "Bug Tracker" = "https://github.com/dzp-iac-agent/dzp-iac-agent/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["src", "web_interface"]
 
 [tool.hatch.build]
 include = [
     "src/**/*.py",
+    "web_interface/**/*.py",
+    "web_interface/**/*.html",
     "*.md",
     "*.yml",
     "*.yaml",
