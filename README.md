@@ -66,6 +66,39 @@ cp .env.example .env
 dzp
 ```
 
+## 🐳 Docker Quick Start
+
+**Prefer Docker?** Get up and running in 3 commands:
+
+```bash
+# 1. Clone and setup
+git clone <repository-url> && cd dzp
+cp .env.docker .env  # Edit with your AI provider settings
+
+# 2. Start all services
+make docker-up
+# or: docker-compose up -d
+
+# 3. Access the web interface
+open http://localhost:8080
+```
+
+**Services:**
+- 🌐 **Web Interface**: http://localhost:8080
+- 🔌 **API Server**: http://localhost:8000
+- 📚 **API Docs**: http://localhost:8000/docs
+
+**With local Ollama:**
+```bash
+make docker-up-ollama
+# Wait for Ollama to start, then pull a model:
+docker-compose exec ollama ollama pull llama3.1
+```
+
+📖 **Full Docker Guide**: See [DOCKER.md](./DOCKER.md) for complete Docker documentation.
+
+---
+
 ## 🚀 Installation Guide
 
 ### Prerequisites

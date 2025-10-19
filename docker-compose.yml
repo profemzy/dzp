@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # API Server - Standalone REST API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dzp-api
+    command: ["dzp-api", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - AI_PROVIDER=${AI_PROVIDER:-openai_compatible}
+      - OPENAI_COMPATIBLE_API_KEY=${OPENAI_COMPATIBLE_API_KEY:-}
+      - OPENAI_COMPATIBLE_MODEL=${OPENAI_COMPATIBLE_MODEL:-llama3.1}
+      - OPENAI_COMPATIBLE_BASE_URL=${OPENAI_COMPATIBLE_BASE_URL:-http://localhost:11434/v1}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
+      - USE_DEEPAGENTS=${USE_DEEPAGENTS:-false}
+      - HUMAN_IN_THE_LOOP=${HUMAN_IN_THE_LOOP:-true}
+      - TERRAFORM_DIR=${TERRAFORM_DIR:-/terraform}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      # Mount your Terraform files here
+      - ${TERRAFORM_DIR:-./terraform}:/terraform
+      # Persist session data
+      - api-sessions:/app/sessions
+    networks:
+      - dzp-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Web Interface - Full UI with integrated API
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dzp-web
+    command: ["dzp-web", "--host", "0.0.0.0", "--port", "8080"]
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - AI_PROVIDER=${AI_PROVIDER:-openai_compatible}
+      - OPENAI_COMPATIBLE_API_KEY=${OPENAI_COMPATIBLE_API_KEY:-}
+      - OPENAI_COMPATIBLE_MODEL=${OPENAI_COMPATIBLE_MODEL:-llama3.1}
+      - OPENAI_COMPATIBLE_BASE_URL=${OPENAI_COMPATIBLE_BASE_URL:-http://localhost:11434/v1}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
+      - USE_DEEPAGENTS=${USE_DEEPAGENTS:-false}
+      - HUMAN_IN_THE_LOOP=${HUMAN_IN_THE_LOOP:-true}
+      - TERRAFORM_DIR=${TERRAFORM_DIR:-/terraform}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      # Mount your Terraform files here
+      - ${TERRAFORM_DIR:-./terraform}:/terraform
+      # Persist session data
+      - web-sessions:/app/sessions
+    networks:
+      - dzp-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Optional: Ollama service for local AI
+  ollama:
+    image: ollama/ollama:latest
+    container_name: dzp-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - dzp-network
+    restart: unless-stopped
+    profiles:
+      - with-ollama
+    # Uncomment if you have GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+volumes:
+  # Persistent storage for sessions
+  api-sessions:
+    driver: local
+  web-sessions:
+    driver: local
+  # Ollama model storage
+  ollama-data:
+    driver: local
+
+networks:
+  dzp-network:
+    driver: bridge
