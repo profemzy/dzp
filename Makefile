@@ -16,7 +16,6 @@ help:
 	@echo "Docker:"
 	@echo "  docker-build       Build Docker images"
 	@echo "  docker-up          Start all services"
-	@echo "  docker-up-ollama   Start with Ollama"
 	@echo "  docker-down        Stop all services"
 	@echo "  docker-restart     Restart services"
 	@echo "  docker-logs        View logs"
@@ -92,14 +91,6 @@ docker-up:
 	@echo "✅ Services started!"
 	@echo "📍 Web Interface: http://localhost:8080"
 	@echo "📍 API Server: http://localhost:8000"
-
-docker-up-ollama:
-	@echo "🚀 Starting services with Ollama..."
-	docker-compose --profile with-ollama up -d
-	@echo "✅ Services started!"
-	@echo "📍 Web Interface: http://localhost:8080"
-	@echo "📍 API Server: http://localhost:8000"
-	@echo "📍 Ollama: http://localhost:11434"
 
 # Stop services
 docker-down:

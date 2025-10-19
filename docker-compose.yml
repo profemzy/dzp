@@ -73,36 +73,11 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # Optional: Ollama service for local AI
-  ollama:
-    image: ollama/ollama:latest
-    container_name: dzp-ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama-data:/root/.ollama
-    networks:
-      - dzp-network
-    restart: unless-stopped
-    profiles:
-      - with-ollama
-    # Uncomment if you have GPU support
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
-
 volumes:
   # Persistent storage for sessions
   api-sessions:
     driver: local
   web-sessions:
-    driver: local
-  # Ollama model storage
-  ollama-data:
     driver: local
 
 networks:

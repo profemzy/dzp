@@ -88,14 +88,7 @@ open http://localhost:8080
 - 🔌 **API Server**: http://localhost:8000
 - 📚 **API Docs**: http://localhost:8000/docs
 
-**With local Ollama:**
-```bash
-make docker-up-ollama
-# Wait for Ollama to start, then pull a model:
-docker-compose exec ollama ollama pull llama3.1
-```
-
-📖 **Full Docker Guide**: See [DOCKER.md](./DOCKER.md) for complete Docker documentation.
+📖 **Full Docker Guide**: See [docs/DOCKER.md](./docs/DOCKER.md) for complete Docker documentation.
 
 ---
 
