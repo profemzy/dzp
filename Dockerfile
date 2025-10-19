@@ -13,7 +13,6 @@ RUN apt-get update && apt-get install -y \
     git \
     gnupg \
     lsb-release \
-    software-properties-common \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
@@ -23,10 +22,6 @@ RUN wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/shar
     && apt-get update && apt-get install -y terraform \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for faster package installation
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.cargo/bin:${PATH}"
-
 # Set working directory
 WORKDIR /app
 
@@ -34,16 +29,15 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY README.md ./
 
-# Install Python dependencies
-RUN uv pip install --system -e .
+# Install Python dependencies using pip
+RUN pip install --no-cache-dir -e .
 
 # Final stage
 FROM python:3.13-slim
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/root/.cargo/bin:${PATH}"
+    PYTHONDONTWRITEBYTECODE=1
 
 # Install runtime dependencies and Terraform
 RUN apt-get update && apt-get install -y \
