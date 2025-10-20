@@ -161,10 +161,12 @@ class TaskEngine:
         logger.info("Executing terraform plan")
         result = await self.terraform_cli.plan(detailed_exitcode=detailed)
 
-        # Parse plan output for summary
+        # Parse plan output for summary and details
         summary = {}
+        plan_details = {}
         if result.success and isinstance(result.stdout, str):
             summary = self.terraform_cli.get_plan_summary(result.stdout)
+            plan_details = self.terraform_cli.parse_plan_details(result.stdout)
 
         return {
             "action": "terraform_plan",
@@ -172,6 +174,7 @@ class TaskEngine:
             "output": result.stdout,
             "error": result.stderr if not result.success else None,
             "summary": summary,
+            "details": plan_details,
             "duration": result.duration,
         }
 

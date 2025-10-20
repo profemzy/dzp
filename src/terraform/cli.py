@@ -398,6 +398,154 @@ class TerraformCLI:
 
         return summary
 
+    def parse_plan_details(self, plan_output: str) -> Dict[str, Any]:
+        """
+        Parse detailed resource changes from plan output
+        Returns structured information about what resources are being created, changed, or destroyed
+        """
+        # Strip ANSI escape codes from the output
+        ansi_escape = re.compile(r'\x1b\[[0-9;]*m')
+        plan_output = ansi_escape.sub('', plan_output)
+
+        details = {
+            "resources_to_create": [],
+            "resources_to_change": [],
+            "resources_to_destroy": [],
+            "resources_to_replace": [],
+        }
+
+        lines = plan_output.split("\n")
+        current_resource = None
+        current_action = None
+        current_resource_type = None
+        attribute_changes = []
+        in_resource_block = False
+
+        for i, line in enumerate(lines):
+            # Detect resource changes
+            # Format: "  # module.x.resource_type.name will be created"
+            # Format: "  # module.x.resource_type.name will be updated in-place"
+            if " will be created" in line or " will be updated in-place" in line or \
+               " will be destroyed" in line or " must be replaced" in line:
+
+                # Save previous resource if any
+                if current_resource:
+                    resource_info = {
+                        "address": current_resource,
+                        "resource_type": current_resource_type,
+                        "action": current_action,
+                        "changes": attribute_changes.copy() if attribute_changes else []
+                    }
+
+                    if current_action == "create":
+                        details["resources_to_create"].append(resource_info)
+                    elif current_action == "update":
+                        details["resources_to_change"].append(resource_info)
+                    elif current_action == "destroy":
+                        details["resources_to_destroy"].append(resource_info)
+                    elif current_action == "replace":
+                        details["resources_to_replace"].append(resource_info)
+
+                # Extract resource address
+                resource_match = re.search(r'#\s+([^\s]+)\s+will be', line)
+                if resource_match:
+                    current_resource = resource_match.group(1)
+                    attribute_changes = []
+                    in_resource_block = False
+
+                    if "will be created" in line:
+                        current_action = "create"
+                    elif "will be updated in-place" in line or "will be changed" in line:
+                        current_action = "update"
+                    elif "will be destroyed" in line:
+                        current_action = "destroy"
+                    elif "must be replaced" in line:
+                        current_action = "replace"
+
+            # Extract resource type from resource block
+            # Format: '  ~ resource "google_container_node_pool" "pools" {'
+            elif current_resource and not current_resource_type:
+                type_match = re.search(r'resource\s+"([^"]+)"\s+"[^"]+"', line)
+                if type_match:
+                    current_resource_type = type_match.group(1)
+                    in_resource_block = True
+
+            # Detect attribute changes (handles both direct and nested attributes)
+            # Format: "      ~ attribute_name = "old" -> "new""
+            # Format: "      + attribute_name = "value""
+            # Format: "      - attribute_name = "value""
+            # Also handles nested blocks like: "      ~ node_config {"
+            elif current_resource and in_resource_block:
+                # Match attribute changes with -> operator
+                arrow_match = re.search(r'^\s*~\s+([^\s=]+)\s*=\s*"?([^"]+)"?\s*->\s*"?([^"]+)"?', line)
+                if arrow_match:
+                    attr_name = arrow_match.group(1)
+                    old_value = arrow_match.group(2).strip('"')
+                    new_value = arrow_match.group(3).strip('"')
+
+                    attribute_changes.append({
+                        "attribute": attr_name,
+                        "change_type": "update",
+                        "old_value": old_value,
+                        "new_value": new_value
+                    })
+                else:
+                    # Match additions and removals
+                    simple_match = re.search(r'^\s*([~+\-])\s+([^\s=]+)\s*=\s*(.+?)$', line.strip())
+                    if simple_match:
+                        symbol = simple_match.group(1)
+                        attr_name = simple_match.group(2)
+                        value = simple_match.group(3).strip().strip('"')
+
+                        change_type = {
+                            '~': 'update',
+                            '+': 'add',
+                            '-': 'remove'
+                        }.get(symbol, 'unknown')
+
+                        if symbol == '~':
+                            # For ~ without ->, we might need to check next lines
+                            attribute_changes.append({
+                                "attribute": attr_name,
+                                "change_type": change_type,
+                                "old_value": None,
+                                "new_value": value if symbol == '+' else None
+                            })
+                        elif symbol == '+':
+                            attribute_changes.append({
+                                "attribute": attr_name,
+                                "change_type": change_type,
+                                "old_value": None,
+                                "new_value": value
+                            })
+                        elif symbol == '-':
+                            attribute_changes.append({
+                                "attribute": attr_name,
+                                "change_type": change_type,
+                                "old_value": value,
+                                "new_value": None
+                            })
+
+        # Save last resource if any
+        if current_resource:
+            resource_info = {
+                "address": current_resource,
+                "resource_type": current_resource_type,
+                "action": current_action,
+                "changes": attribute_changes.copy() if attribute_changes else []
+            }
+
+            if current_action == "create":
+                details["resources_to_create"].append(resource_info)
+            elif current_action == "update":
+                details["resources_to_change"].append(resource_info)
+            elif current_action == "destroy":
+                details["resources_to_destroy"].append(resource_info)
+            elif current_action == "replace":
+                details["resources_to_replace"].append(resource_info)
+
+        return details
+
     def get_resource_changes(self, plan_json: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Extract resource changes from plan JSON"""
         changes = []

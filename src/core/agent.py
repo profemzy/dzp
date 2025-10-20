@@ -43,6 +43,7 @@ class TerraformAgent:
         self.last_command = None
         self.last_result = None
         self.last_plan_summary = None
+        self.last_plan_details = None
 
         # Setup task engine callbacks
         self.task_engine.add_task_callback(self._on_task_update)
@@ -323,10 +324,41 @@ Instructions:
 
         if self.last_command in ["terraform plan", "run terraform plan"]:
             summary = self.last_result.get("summary", {})
+            details = self.last_result.get("details", {})
+
+            context = []
             if summary:
-                return f"Terraform plan shows {summary.get('add', 0)} resources to add, {summary.get('change', 0)} to change, {summary.get('destroy', 0)} to destroy"
-            else:
-                return "Terraform plan was executed"
+                context.append(f"Terraform plan shows {summary.get('add', 0)} resources to add, {summary.get('change', 0)} to change, {summary.get('destroy', 0)} to destroy")
+
+            # Add detailed resource information
+            if details:
+                if details.get("resources_to_create"):
+                    resources = [r['address'] for r in details['resources_to_create']]
+                    context.append(f"Resources to create: {', '.join(resources)}")
+
+                if details.get("resources_to_change"):
+                    resources = [r['address'] for r in details['resources_to_change']]
+                    context.append(f"Resources to change: {', '.join(resources)}")
+
+                    # Include attribute changes for more context
+                    for resource in details['resources_to_change']:
+                        if resource.get('changes'):
+                            changes_desc = []
+                            for change in resource['changes'][:5]:  # First 5 changes
+                                old_val = change.get('old_value', 'N/A')
+                                new_val = change.get('new_value', 'N/A')
+                                changes_desc.append(f"{change['attribute']}: {old_val} → {new_val}")
+                            context.append(f"  - {resource['address']} changing: {', '.join(changes_desc)}")
+
+                if details.get("resources_to_destroy"):
+                    resources = [r['address'] for r in details['resources_to_destroy']]
+                    context.append(f"Resources to destroy: {', '.join(resources)}")
+
+                if details.get("resources_to_replace"):
+                    resources = [r['address'] for r in details['resources_to_replace']]
+                    context.append(f"Resources to replace: {', '.join(resources)}")
+
+            return "\n".join(context) if context else "Terraform plan was executed"
 
         action = self.last_result.get("action", self.last_command)
         success = self.last_result.get("success", False)
@@ -402,6 +434,9 @@ Instructions:
                 result = await self.task_engine.execute_terraform_state_list()
             else:
                 return f"Unknown terraform command: {action}"
+
+            # Store the raw result for context tracking (before formatting)
+            self.last_result = result
 
             # Format the response
             return self._format_terraform_result(result, action)
@@ -485,6 +520,57 @@ Instructions:
             response += f"• 🔄 Resources to change: {summary.get('change', 0)}\n"
             response += f"• 🗑️  Resources to destroy: {summary.get('destroy', 0)}\n\n"
 
+        # Add detailed resource changes if available
+        if result.get("details"):
+            details = result["details"]
+
+            # Resources being created
+            if details.get("resources_to_create"):
+                response += "**🆕 Resources to Create:**\n"
+                for resource in details["resources_to_create"]:
+                    resource_type = f" ({resource['resource_type']})" if resource.get('resource_type') else ""
+                    response += f"  • **{resource['address']}**{resource_type}\n"
+                    if resource.get('changes'):
+                        for change in resource['changes'][:3]:  # Show first 3 attributes
+                            response += f"    - {change['attribute']}: {change.get('new_value', 'N/A')}\n"
+                        if len(resource['changes']) > 3:
+                            response += f"    ... and {len(resource['changes']) - 3} more attributes\n"
+                response += "\n"
+
+            # Resources being changed
+            if details.get("resources_to_change"):
+                response += "**🔄 Resources to Change:**\n"
+                for resource in details["resources_to_change"]:
+                    resource_type = f" ({resource['resource_type']})" if resource.get('resource_type') else ""
+                    response += f"  • **{resource['address']}**{resource_type}\n"
+                    if resource.get('changes'):
+                        for change in resource['changes'][:5]:  # Show first 5 changes
+                            old_val = change.get('old_value', 'N/A')
+                            new_val = change.get('new_value', 'N/A')
+                            response += f"    - {change['attribute']}: {old_val} → {new_val}\n"
+                        if len(resource['changes']) > 5:
+                            response += f"    ... and {len(resource['changes']) - 5} more changes\n"
+                response += "\n"
+
+            # Resources being destroyed
+            if details.get("resources_to_destroy"):
+                response += "**🗑️  Resources to Destroy:**\n"
+                for resource in details["resources_to_destroy"]:
+                    response += f"  • **{resource['address']}**\n"
+                response += "\n"
+
+            # Resources being replaced
+            if details.get("resources_to_replace"):
+                response += "**⚠️  Resources to Replace:**\n"
+                for resource in details["resources_to_replace"]:
+                    response += f"  • **{resource['address']}**\n"
+                    if resource.get('changes'):
+                        for change in resource['changes'][:3]:
+                            response += f"    - {change['attribute']}: {change.get('old_value', 'N/A')} → {change.get('new_value', 'N/A')}\n"
+                        if len(resource['changes']) > 3:
+                            response += f"    ... and {len(resource['changes']) - 3} more changes\n"
+                response += "\n"
+
         # Analyze the plan output for meaningful insights
         output = result.get("output", "")
         if isinstance(output, str):
@@ -504,14 +590,7 @@ Instructions:
                     )
                     response += f"📊 **Analysis:** {total_changes} change{'s' if total_changes != 1 else ''} detected.\n\n"
 
-                    if summary.get("add", 0) > 0:
-                        response += f"🆕 **New Resources:** {summary.get('add', 0)} resources will be created.\n"
-                    if summary.get("change", 0) > 0:
-                        response += f"🔄 **Updates:** {summary.get('change', 0)} resources will be modified.\n"
-                    if summary.get("destroy", 0) > 0:
-                        response += f"🗑️  **Removals:** {summary.get('destroy', 0)} resources will be destroyed.\n"
-
-                    response += "\n💡 **Next Steps:** Review the changes and run 'terraform apply' when ready.\n\n"
+                    response += "💡 **Next Steps:** Review the changes and run 'terraform apply' when ready.\n\n"
 
             # Extract key information without showing raw output
             if "Refreshing state" in output:
@@ -680,6 +759,39 @@ Instructions:
 
         return response + "\n"
 
+    def _needs_plan_context(self, command: str) -> bool:
+        """Detect if the command needs plan context but none exists"""
+        command_lower = command.lower()
+
+        # Keywords that indicate the user is asking about plan changes
+        plan_related_keywords = [
+            "what resources",
+            "what's changing",
+            "what is changing",
+            "what are changing",
+            "what will change",
+            "what will be",
+            "explain the resources",
+            "show me what",
+            "details of",
+            "what's being",
+            "what is being",
+            "which resources",
+            "list the changes",
+            "show the changes",
+            "plan changes",
+            "planned changes",
+        ]
+
+        # Check if query is about plan-related information
+        is_plan_query = any(keyword in command_lower for keyword in plan_related_keywords)
+
+        # Check if we have recent plan context
+        has_plan_context = self.last_plan_details is not None and self.last_plan_summary is not None
+
+        # Need to run plan if query is plan-related but we don't have context
+        return is_plan_query and not has_plan_context
+
     async def process_command_async(self, command: str) -> str:
         """Process a command asynchronously and return the response"""
         if not command.strip():
@@ -711,15 +823,33 @@ Instructions:
             terraform_action = self._detect_terraform_command(command)
             if terraform_action:
                 # Execute terraform command asynchronously
+                # Note: _execute_terraform_command stores the result in self.last_result
                 response = await self._execute_terraform_command(
                     command, terraform_action
                 )
                 # Update context tracking
                 self.last_command = command
-                self.last_result = self._extract_result_from_response(response, terraform_action)
+                # last_result is already set in _execute_terraform_command
                 if terraform_action == "plan":
                     self.last_plan_summary = self.last_result.get("summary") if self.last_result else None
+                    self.last_plan_details = self.last_result.get("details") if self.last_result else None
             else:
+                # Check if we need to run plan first for context
+                if self._needs_plan_context(command):
+                    logger.info("Query requires plan context - running terraform plan first")
+                    # Run plan automatically
+                    plan_response = await self._execute_terraform_command("terraform plan", "plan")
+                    self.last_command = "terraform plan"
+                    if "plan" in self.last_result.get("action", ""):
+                        self.last_plan_summary = self.last_result.get("summary")
+                        self.last_plan_details = self.last_result.get("details")
+
+                    # Add plan execution to conversation
+                    self.conversation_history.append({
+                        "role": "assistant",
+                        "content": f"🔄 Running terraform plan first to analyze changes...\n\n{plan_response}"
+                    })
+
                 # Use context-aware LLM processing for ALL non-terraform commands
                 context_prompt = self._build_context_aware_prompt(command)
                 response = await self.ai_processor.process_query(
